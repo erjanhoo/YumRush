@@ -1,3 +1,7 @@
+from random import choice
+import time
+
+from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -6,9 +10,11 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
-from order.models import CartItem, Cart
+from order.models import CartItem, Cart, Order
 from order.serializers import CartSerializer
+from user.models import MyUser
 from .serializers import *
+
 
 
 class MainPageView(APIView):
@@ -157,6 +163,11 @@ class ProductDetailView(APIView):
         }
     )
     def get(self, request, pk):
+        cache_key = f'product_detail_{pk}'
+        cached_product = cache.get(cache_key)
+        if cached_product:
+            return Response(cached_product, status=status.HTTP_200_OK)
+
         try:
             product = Product.objects.get(pk=pk)
         except Product.DoesNotExist:
@@ -169,4 +180,133 @@ class ProductDetailView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = ProductDetailSerializer(product, context={'request': request})
+        cache.set(cache_key, serializer.data, timeout=10)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class GetOneRandomProductView(APIView):
+    def get(self, request):
+
+        products = Product.objects.all()
+        product = choice(list(products))
+        serializer = ProductDetailSerializer(product)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# class PerformanceComparisonView(APIView):
+#     @swagger_auto_schema(
+#         tags=['performance'],
+#         operation_description="Compare performance with and without Redis caching",
+#         responses={200: "Performance data"}
+#     )
+#     def get(self, request):
+#         iterations = 50  # Increased iterations for more dramatic results
+#
+#         # Without caching - fetch all data fresh each time
+#         start_time = time.time()
+#         for _ in range(iterations):
+#             # Fetch products with all related data
+#             products = Product.objects.select_related('category', 'company').prefetch_related(
+#                 'category__subcategories',
+#                 'company__categories',
+#                 'company__products'
+#             ).all()
+#
+#             # Fetch categories with related data
+#             categories = Category.objects.select_related('company', 'parent_category').prefetch_related(
+#                 'subcategories',
+#                 'products'
+#             ).all()
+#
+#             # Fetch companies with all related data
+#             companies = Company.objects.prefetch_related(
+#                 'categories',
+#                 'products',
+#                 'myuser_set'  # All users belonging to this company
+#             ).all()
+#
+#             # Fetch orders with related data
+#             orders = Order.objects.select_related('user', 'assigned_courier').prefetch_related(
+#                 'items__product',
+#                 'items__product__category',
+#                 'items__product__company'
+#             ).all()[:100]  # Limit to 100 orders for performance
+#
+#             # Fetch users
+#             users = MyUser.objects.select_related('company').all()[:100]  # Limit to 100 users
+#
+#             # Serialize all data (this is the expensive part)
+#             product_data = ProductListSerializer(products, many=True, context={'request': request}).data
+#             category_data = CategoryListSerializer(categories, many=True, context={'request': request}).data
+#             company_data = CompanySerializer(companies, many=True, context={'request': request}).data
+#             # Convert QuerySets to lists to serialize orders and users
+#             order_list = list(orders)
+#             user_list = list(users)
+#
+#         no_cache_time = (time.time() - start_time) / iterations
+#
+#         # With caching - check cache first
+#         start_time = time.time()
+#         for _ in range(iterations):
+#             cached_data = cache.get('performance_test_data')
+#             if not cached_data:
+#                 # Fetch products with all related data
+#                 products = Product.objects.select_related('category', 'company').prefetch_related(
+#                     'category__subcategories',
+#                     'company__categories',
+#                     'company__products'
+#                 ).all()
+#
+#                 # Fetch categories with related data
+#                 categories = Category.objects.select_related('company', 'parent_category').prefetch_related(
+#                     'subcategories',
+#                     'products'
+#                 ).all()
+#
+#                 # Fetch companies with all related data
+#                 companies = Company.objects.prefetch_related(
+#                     'categories',
+#                     'products',
+#                     'myuser_set'
+#                 ).all()
+#
+#                 # Fetch orders with related data
+#                 orders = Order.objects.select_related('user', 'assigned_courier').prefetch_related(
+#                     'items__product',
+#                     'items__product__category',
+#                     'items__product__company'
+#                 ).all()[:100]
+#
+#                 # Fetch users
+#                 users = MyUser.objects.select_related('company').all()[:100]
+#
+#                 cached_data = {
+#                     'products': ProductListSerializer(products, many=True, context={'request': request}).data,
+#                     'categories': CategoryListSerializer(categories, many=True, context={'request': request}).data,
+#                     'companies': CompanySerializer(companies, many=True, context={'request': request}).data,
+#                     'total_orders': orders.count() if hasattr(orders, 'count') else len(list(orders)),
+#                     'total_users': users.count() if hasattr(users, 'count') else len(list(users)),
+#                 }
+#                 cache.set('performance_test_data', cached_data, timeout=60)
+#         cache_time = (time.time() - start_time) / iterations
+#
+#         # Calculate speedup
+#         speedup = round(no_cache_time / cache_time, 2) if cache_time > 0 else 0
+#
+#         return Response({
+#             'no_cache_time_ms': round(no_cache_time * 1000, 3),
+#             'cache_time_ms': round(cache_time * 1000, 3),
+#             'speedup': f'{speedup}x faster',
+#             'time_saved_per_request_ms': round((no_cache_time - cache_time) * 1000, 3),
+#             'iterations': iterations,
+#             'cache_status': 'HIT' if cache.get('performance_test_data') else 'MISS',
+#             'data_fetched': {
+#                 'products_count': len(cached_data.get('products', [])) if 'cached_data' in locals() else 0,
+#                 'categories_count': len(cached_data.get('categories', [])) if 'cached_data' in locals() else 0,
+#                 'companies_count': len(cached_data.get('companies', [])) if 'cached_data' in locals() else 0,
+#                 'orders_count': cached_data.get('total_orders', 0) if 'cached_data' in locals() else 0,
+#                 'users_count': cached_data.get('total_users', 0) if 'cached_data' in locals() else 0,
+#             },
+#             'data': cached_data if 'cached_data' in locals() else cache.get('performance_test_data')
+#         }, status=status.HTTP_200_OK)

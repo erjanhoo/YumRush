@@ -1,4 +1,4 @@
-
+from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from rest_framework.exceptions import PermissionDenied
@@ -79,8 +79,16 @@ class UserOrderHistoryView(APIView):
         }
     )
     def get(self, request):
+        cache_key = f'user_{request.user.id}_order_history'
+        data = cache.get(cache_key)
+
+        if data:
+            return Response(data, status=status.HTTP_200_OK)
+
         orders = Order.objects.filter(user=request.user, status='delivered').order_by('-created_at')
         serializer = UserOrderHistorySerializer(orders, many=True)
+        cache.set(cache_key, serializer.data, 60*5)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -212,6 +220,8 @@ class CreateOrderView(APIView):
             cart.save()
 
             order_serializer = OrderSerializer(order)
+            cache.delete(f'user_{request.user.id}_order_history')
+
             return Response(order_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -251,7 +261,6 @@ class OrderHistoryDetailView(APIView):
 
         serializer = UserOrderHistoryDetailSerializer(order)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 
 class OrderAcceptView(UpdateAPIView):

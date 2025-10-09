@@ -3,7 +3,9 @@ from .views import *
 
 
 urlpatterns = [
-    # Main page with products and cart
-    path('main_page', MainPageView.as_view(), name='main_page'),
-    path('products/<int:pk>/', ProductDetailView.as_view(), name='product_detail'),
+
+    path('main_page/', MainPageView.as_view(), name='main_page'),
+    path('product/<int:pk>/', ProductDetailView.as_view(), name='product_detail'),
+    path('get_random_product/', GetOneRandomProductView.as_view(), name='get_random_product'),
+    # path('performance_comparison/', PerformanceComparisonView.as_view(), name='performance_comparison'),
 ]

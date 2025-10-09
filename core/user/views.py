@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 import datetime
 
-from django.contrib.auth import user_login_failed, authenticate
+from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema

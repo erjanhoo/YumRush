@@ -22,7 +22,7 @@ class MyUserManager(BaseUserManager):
         return self.get(**{self.model.USERNAME_FIELD: email})
 
 
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser
 from django.db import models
 
 
