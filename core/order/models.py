@@ -14,15 +14,20 @@ user = get_user_model()
 class Order(models.Model):
     assigned_courier = models.ForeignKey(user, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders')
     user = models.ForeignKey(user, on_delete=models.CASCADE, related_name='orders')
+    chat_group = models.ForeignKey('live_chat.Group', on_delete=models.SET_NULL, null=True, blank=True, related_name='order')
     created_at = models.DateTimeField(auto_now_add=True)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    delivering_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
     STATUS_CHOICES = [
         ('new', 'Новый'),
         ('assigned', 'Назначено курьеру'),
-        ('in_progress', 'В процессе'),
+        ('delivering', 'Доставляется'),
         ('delivered', 'Доставлено'),
         ('cancelled', 'Отменено'),
     ]
-    status = models.CharField(max_length=50,choices=STATUS_CHOICES, default='Pending')  # e.g., Pending, Shipped, Delivered, Cancelled
+    status = models.CharField(max_length=50,choices=STATUS_CHOICES, default='new')  # e.g., Pending, Shipped, Delivered, Cancelled
     rating = PositiveSmallIntegerField(null=True, blank=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     is_active = models.BooleanField(default=True)

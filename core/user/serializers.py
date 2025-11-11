@@ -1,7 +1,8 @@
-from .models import MyUser
+from .models import MyUser, Transactions
 from order.models import Delivery
 from product.models import Product
 from rest_framework import serializers
+from decimal import Decimal
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -52,7 +53,12 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ('email', )
 
 class UserBalanceTopUpSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+
+class UserTransactionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transactions
+        fields = ('id', 'user', 'amount', 'date')
 
 
 class UserDeliverySerializer(serializers.ModelSerializer):

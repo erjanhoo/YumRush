@@ -76,3 +76,9 @@ class TemporaryRegistration(models.Model):
     class Meta:
         # Auto-delete after 24 hours
         indexes = [models.Index(fields=['created_at'])]
+
+
+class Transactions(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateTimeField(auto_now_add=True)

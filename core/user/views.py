@@ -1,6 +1,6 @@
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-import datetime
+from .tasks import *
 
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
@@ -18,6 +18,15 @@ from .services import *
 from .serializers import *
 from django.conf import settings
 from django.db import IntegrityError
+from django.core.cache import cache
+from .models import Transactions
+from .throttling import (
+    OTPVerificationThrottle, 
+    OTPResendThrottle,
+    StrictOTPVerificationThrottle,
+    IPBasedOTPThrottle,
+    reset_otp_attempts
+)
 
 from product.models import Product
 
@@ -70,15 +79,9 @@ class UserRegisterView(APIView):
                 temp_reg.save()
 
                 try:
-                    send_mail(
-                        subject='Подтверждение регистрации',
-                        message=f'Добро пожаловать! Ваш код подтверждения: {otp_code}',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[temp_reg.email],
-                        fail_silently=False,
-                    )
+                    send_otp_email.delay(temp_reg.email, otp_code)
                 except Exception as e:
-                    # Если отправка email не удалась, удаляем временную регистрацию
+                    # Если отправка задачи в Celery не удалась, удаляем временную регистрацию
                     temp_reg.delete()
                     return Response(
                         {'error': 'Ошибка отправки email. Попробуйте позже.'},
@@ -148,13 +151,7 @@ class UserLoginView(APIView):
                     user.save()
                     user_email = user.email
 
-                    send_mail(
-                        subject='Code',
-                        message=f'Your OTP code is {otp_code}',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[user_email],
-                        fail_silently=False,
-                    )
+                    send_otp_email.delay(user_email, otp_code)
 
                     data = {
                         'user_id':user.id,
@@ -213,7 +210,7 @@ class UserLogoutView(APIView):
             token.blacklist()
             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
         except Exception:
-            return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+            return Response({"detail": "Something went wrong"}, status=status.HTTP_200_OK)
 
 
 #PROFILE
@@ -288,6 +285,9 @@ class UserBalanceTopUpView(UpdateAPIView):
 
             user.balance = user.balance + amount
             user.save()
+
+            Transactions.objects.create(user=user, amount=amount)
+
             return Response({
                 'balance': user.balance,
                 'message': 'Balance topped up successfully'
@@ -298,8 +298,25 @@ class UserBalanceTopUpView(UpdateAPIView):
         return self.request.user
 
 
+class UserTransactionHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        cache_key = f'transactions_history_{request.user.id}'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return Response(cached_data, status=status.HTTP_200_OK)
+
+        transactions = Transactions.objects.filter(user=request.user)
+        serializer = UserTransactionHistorySerializer(transactions, many=True)
+        cache.set(cache_key, serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
 #OTP VALIDATION
 class UserLoginOTPVerificationView(APIView):
+    throttle_classes = [OTPVerificationThrottle, StrictOTPVerificationThrottle, IPBasedOTPThrottle]
+    
     @swagger_auto_schema(
         tags=['auth'],
         operation_description="Verify OTP code for two-factor authentication",
@@ -360,6 +377,10 @@ class UserLoginOTPVerificationView(APIView):
 
             if not verifyOTP(entered_otp, user_otp):
                 return Response({'error':'invalid OTP code'},status=status.HTTP_400_BAD_REQUEST)
+            
+            # Reset OTP attempts after successful verification
+            reset_otp_attempts(temp_id)
+            
             temp_reg.otp = None
             temp_reg.save()
 
@@ -389,6 +410,8 @@ class UserLoginOTPVerificationView(APIView):
 
 
 class UserRegistrationOTPVerificationView(APIView):
+    throttle_classes = [OTPVerificationThrottle, StrictOTPVerificationThrottle, IPBasedOTPThrottle]
+    
     @swagger_auto_schema(
         tags=['auth'],
         operation_description="Verify OTP code for new user registration and complete the registration process",
@@ -457,6 +480,8 @@ class UserRegistrationOTPVerificationView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Reset OTP attempts after successful verification
+            reset_otp_attempts(temp_id)
 
             try:
                 if MyUser.objects.filter(email=temp_reg.email).exists():
@@ -498,6 +523,164 @@ class UserRegistrationOTPVerificationView(APIView):
                 )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResendRegistrationOTPView(APIView):
+    """
+    Resend OTP code for registration verification.
+    Rate limited to prevent spam.
+    """
+    throttle_classes = [OTPResendThrottle]
+    
+    @swagger_auto_schema(
+        tags=['auth'],
+        operation_description="Resend OTP code for registration verification",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['user_id'],
+            properties={
+                'user_id': openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description='Temporary registration ID received during registration'
+                ),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                description="OTP code resent successfully",
+                examples={
+                    "application/json": {
+                        "message": "Новый OTP код отправлен на ваш email",
+                        "user_id": 1
+                    }
+                }
+            ),
+            400: "Bad request",
+            404: "Registration request not found",
+            429: "Too many requests - rate limit exceeded"
+        }
+    )
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response(
+                {'error': 'user_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            temp_reg = TemporaryRegistration.objects.get(id=user_id)
+        except TemporaryRegistration.DoesNotExist:
+            return Response(
+                {'error': 'Регистрационный запрос не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Generate new OTP
+        otp_code = generateOTP()
+        temp_reg.otp = otp_code
+        temp_reg.otp_created_at = timezone.now()
+        temp_reg.save()
+        
+        # Send OTP email
+        try:
+            send_otp_email.delay(temp_reg.email, otp_code)
+        except Exception as e:
+            return Response(
+                {'error': 'Ошибка отправки email. Попробуйте позже.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        return Response(
+            {
+                'message': 'Новый OTP код отправлен на ваш email',
+                'user_id': temp_reg.id
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ResendLoginOTPView(APIView):
+    """
+    Resend OTP code for 2FA login.
+    Rate limited to prevent spam.
+    """
+    throttle_classes = [OTPResendThrottle]
+    
+    @swagger_auto_schema(
+        tags=['auth'],
+        operation_description="Resend OTP code for two-factor authentication",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['user_id'],
+            properties={
+                'user_id': openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description='User ID received during login with 2FA enabled'
+                ),
+            },
+        ),
+        responses={
+            200: openapi.Response(
+                description="OTP code resent successfully",
+                examples={
+                    "application/json": {
+                        "message": "Новый OTP код отправлен на ваш email",
+                        "user_id": 1
+                    }
+                }
+            ),
+            400: "Bad request",
+            404: "User not found",
+            429: "Too many requests - rate limit exceeded"
+        }
+    )
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response(
+                {'error': 'user_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = MyUser.objects.get(id=user_id)
+        except MyUser.DoesNotExist:
+            return Response(
+                {'error': 'Пользователь не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if not user.is_2fa_enabled:
+            return Response(
+                {'error': '2FA не включен для этого пользователя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Generate new OTP
+        otp_code = generateOTP()
+        user.otp = otp_code
+        user.otp_created_at = timezone.now()
+        user.save()
+        
+        # Send OTP email
+        try:
+            send_otp_email.delay(user.email, otp_code)
+        except Exception as e:
+            return Response(
+                {'error': 'Ошибка отправки email. Попробуйте позже.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        return Response(
+            {
+                'message': 'Новый OTP код отправлен на ваш email',
+                'user_id': user.id
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 #MANAGER

@@ -2,6 +2,7 @@ from random import choice
 import time
 
 from django.core.cache import cache
+from django.db.models import Q, Avg, Count
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -9,11 +10,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import ListAPIView
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 from order.models import CartItem, Cart, Order
 from order.serializers import CartSerializer
 from user.models import MyUser
 from .serializers import *
+from .models import Product, Category, Company, ProductReview
 
 
 
@@ -150,6 +155,74 @@ class MainPageView(APIView):
 
         cart_serializer = CartSerializer(cart)
         return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+
+class ProductSearchView(ListAPIView):
+    serializer_class = ProductListSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['category', 'company', 'is_available']
+    search_fields = ['name', 'description', 'tags', 'search_keywords']
+    ordering_fields = ['name', 'original_price', 'rating', 'created_at']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        queryset = Product.objects.filter(is_available=True)
+        
+        # Filter by price range
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        
+        if min_price:
+            try:
+                queryset = queryset.filter(original_price__gte=float(min_price))
+            except ValueError:
+                pass
+        
+        if max_price:
+            try:
+                queryset = queryset.filter(original_price__lte=float(max_price))
+            except ValueError:
+                pass
+        
+        # Filter by rating
+        min_rating = self.request.query_params.get('min_rating')
+        if min_rating:
+            try:
+                queryset = queryset.filter(rating__gte=float(min_rating))
+            except ValueError:
+                pass
+        
+        # Filter by stock availability
+        in_stock = self.request.query_params.get('in_stock')
+        if in_stock and in_stock.lower() == 'true':
+            queryset = queryset.filter(stock_quantity__gt=0)
+        
+        return queryset
+    
+    @swagger_auto_schema(
+        tags=['product'],
+        operation_description="Search and filter products",
+        manual_parameters=[
+            openapi.Parameter('search', openapi.IN_QUERY,
+                            description="Search term", type=openapi.TYPE_STRING),
+            openapi.Parameter('category', openapi.IN_QUERY,
+                            description="Filter by category ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('company', openapi.IN_QUERY,
+                            description="Filter by company ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('min_price', openapi.IN_QUERY,
+                            description="Minimum price", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('max_price', openapi.IN_QUERY,
+                            description="Maximum price", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('min_rating', openapi.IN_QUERY,
+                            description="Minimum rating", type=openapi.TYPE_NUMBER),
+            openapi.Parameter('in_stock', openapi.IN_QUERY,
+                            description="Only show in-stock items", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('ordering', openapi.IN_QUERY,
+                            description="Order by field", type=openapi.TYPE_STRING),
+        ]
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
 
 class ProductDetailView(APIView):

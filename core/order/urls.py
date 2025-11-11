@@ -7,9 +7,12 @@ urlpatterns = [
     path('history/', UserOrderHistoryView.as_view(), name='user_order_history'),
     path('order_history_detail/<int:pk>/', OrderHistoryDetailView.as_view(), name='user_order_history_detail'),
     path('<int:pk>/rate/', OrderRateView.as_view(), name='rate_order'),
+    path('<int:pk>/cancel/', OrderCancelView.as_view(), name='cancel_order'),
+    path('<int:pk>/chat/', OrderChatGroupView.as_view(), name='order_chat_group'),
 
     # Courier orders
     path('courier/available_orders/', CourierAvailableOrdersView.as_view(), name='courier_orders'),
+    path('courier/active_orders/', CourierActiveOrdersView.as_view(), name='courier_active_orders'),
     path('courier/completed_orders/', CourierCompletedOrdersView.as_view(), name='courier_completed_orders'),
 
     # Order's status

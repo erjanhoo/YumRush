@@ -32,11 +32,14 @@ INSTALLED_APPS = [
     'drf_yasg',
     'corsheaders',
     'django_filters',
+    'channels',
+    'django_extensions',
 
     # Local apps
     'user',
     'product',
     'order',
+    'live_chat',
 ]
 
 # ====== MIDDLEWARE ======
@@ -69,8 +72,18 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
 
+# ====== CHANNELS (WebSocket) ======
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.getenv('REDIS_HOST', '127.0.0.1'), 6379)],
+        },
+    },
+}
 # ====== DATABASE ======
 DATABASES = {
     'default': {
@@ -87,7 +100,7 @@ DATABASES = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -154,6 +167,26 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_THROTTLE_RATES': {
+        # OTP verification: 5 attempts per minute, 10 per hour
+        'otp_verification': '5/min',
+        
+        # Strict OTP verification: 3 attempts per 5 minutes
+        'otp_verification_strict': '3/5min',
+        
+        # OTP resend: 3 attempts per minute, 10 per hour
+        'otp_resend': '3/min',
+        
+        # Account lockout: 15 attempts per day
+        'otp_account_lockout': '15/day',
+        
+        # IP-based throttling: 20 attempts per hour per IP
+        'otp_ip_based': '20/hour',
+        
+        # General API rate limits (optional, for other endpoints)
+        'anon': '100/hour',
+        'user': '1000/hour',
+    },
 }
 
 # ====== SWAGGER ======
@@ -168,3 +201,16 @@ SWAGGER_SETTINGS = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ====== CELERY ======
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+
+
+
