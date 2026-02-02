@@ -33,6 +33,33 @@ class CompanySerializer(serializers.ModelSerializer):
         return None
 
 
+class CompanyListSerializer(serializers.ModelSerializer):
+    logo = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
+    product_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Company
+        fields = ['id', 'name', 'logo', 'rating', 'description', 'phone_number', 'categories', 'product_count']
+    
+    def get_logo(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+    
+    def get_categories(self, obj):
+        # Get unique categories from company's products
+        from product.models import Product
+        categories = Product.objects.filter(company=obj).values_list('category__name', flat=True).distinct()
+        return list(categories)
+    
+    def get_product_count(self, obj):
+        return obj.product_set.count()
+
+
 class ProductListSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     category = CategoryListSerializer()

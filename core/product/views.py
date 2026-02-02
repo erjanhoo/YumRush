@@ -383,3 +383,67 @@ class GetOneRandomProductView(APIView):
 #             },
 #             'data': cached_data if 'cached_data' in locals() else cache.get('performance_test_data')
 #         }, status=status.HTTP_200_OK)
+
+
+class RestaurantListView(APIView):
+    @swagger_auto_schema(
+        tags=['restaurants'],
+        operation_description="Get list of restaurants with filtering by category and search",
+        manual_parameters=[
+            openapi.Parameter(
+                'search',
+                openapi.IN_QUERY,
+                description="Search restaurants by name",
+                type=openapi.TYPE_STRING
+            ),
+            openapi.Parameter(
+                'category',
+                openapi.IN_QUERY,
+                description="Filter restaurants that have products in this category",
+                type=openapi.TYPE_STRING
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description="List of restaurants",
+                examples={
+                    "application/json": {
+                        "restaurants": [
+                            {
+                                "id": 1,
+                                "name": "McDonald's",
+                                "logo": "https://example.com/media/companies/mcdonalds.jpg",
+                                "rating": 4.5,
+                                "description": "Fast food chain",
+                                "phone_number": "+1234567890",
+                                "categories": ["Burgers", "Chicken", "Drinks"],
+                                "product_count": 12
+                            }
+                        ]
+                    }
+                }
+            )
+        }
+    )
+    def get(self, request):
+        companies = Company.objects.all()
+        
+        # Search by restaurant name
+        search = request.query_params.get('search', None)
+        if search:
+            companies = companies.filter(name__icontains=search)
+        
+        # Filter by category
+        category = request.query_params.get('category', None)
+        if category:
+            # Find companies that have products in this category
+            companies = companies.filter(product__category__name__iexact=category).distinct()
+        
+        # Order by rating (highest first)
+        companies = companies.order_by('-rating', 'name')
+        
+        serializer = CompanyListSerializer(companies, many=True, context={'request': request})
+        
+        return Response({
+            'restaurants': serializer.data
+        }, status=status.HTTP_200_OK)
