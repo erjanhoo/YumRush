@@ -32,19 +32,49 @@ class Command(BaseCommand):
                 "name": "McDonald's",
                 "phone_number": "+1234567890",
                 "description": "Fast food chain",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/McDonald%27s_Golden_Arches.svg/200px-McDonald%27s_Golden_Arches.svg.png"
+                "logo_url": "https://images.unsplash.com/photo-1619454016518-697bc231e7cb?w=200"
             },
             {
                 "name": "KFC",
                 "phone_number": "+1234567891",
                 "description": "Fried chicken specialists",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/en/thumb/b/bf/KFC_logo.svg/200px-KFC_logo.svg.png"
+                "logo_url": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=200"
             },
             {
                 "name": "Pizza Hut",
                 "phone_number": "+1234567892",
                 "description": "Pizza restaurant",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d2/Pizza_Hut_logo.svg/200px-Pizza_Hut_logo.svg.png"
+                "logo_url": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200"
+            },
+            {
+                "name": "Subway",
+                "phone_number": "+1234567893",
+                "description": "Fresh sandwiches and salads",
+                "logo_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200"
+            },
+            {
+                "name": "Starbucks",
+                "phone_number": "+1234567894",
+                "description": "Coffee and pastries",
+                "logo_url": "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=200"
+            },
+            {
+                "name": "Taco Bell",
+                "phone_number": "+1234567895",
+                "description": "Mexican-inspired fast food",
+                "logo_url": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=200"
+            },
+            {
+                "name": "Burger King",
+                "phone_number": "+1234567896",
+                "description": "Flame-grilled burgers",
+                "logo_url": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=200"
+            },
+            {
+                "name": "Domino's Pizza",
+                "phone_number": "+1234567897",
+                "description": "Pizza delivery experts",
+                "logo_url": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=200"
             },
         ]
 
@@ -56,11 +86,13 @@ class Command(BaseCommand):
                 defaults=data
             )
             
-            # Download logo for both new and existing companies if they don't have one
-            if logo_url and not company.logo:
+            # Force re-download logos
+            if logo_url:
+                if company.logo:
+                    company.logo.delete(save=False)
                 logo_content = self.download_image(logo_url)
                 if logo_content:
-                    company.logo.save(f"{data['name'].lower().replace(' ', '_')}_logo.png", logo_content, save=True)
+                    company.logo.save(f"{data['name'].lower().replace(' ', '_')}_logo.jpg", logo_content, save=True)
                     self.stdout.write(f'Added logo to: {company.name}')
             
             companies[data['name']] = company
@@ -95,6 +127,31 @@ class Command(BaseCommand):
                 "name": "Desserts",
                 "description": "Sweet treats",
                 "image_url": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400"
+            },
+            {
+                "name": "Sandwiches",
+                "description": "Fresh sandwiches",
+                "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400"
+            },
+            {
+                "name": "Tacos",
+                "description": "Mexican tacos",
+                "image_url": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400"
+            },
+            {
+                "name": "Coffee",
+                "description": "Hot and cold coffee",
+                "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400"
+            },
+            {
+                "name": "Salads",
+                "description": "Healthy salads",
+                "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400"
+            },
+            {
+                "name": "Sides",
+                "description": "Side dishes",
+                "image_url": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400"
             },
         ]
 
@@ -225,6 +282,210 @@ class Command(BaseCommand):
                 "ingredients": "Carbonated water, sugar, caffeine",
                 "grams": 500,
                 "image_url": "https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=400"
+            },
+            # Subway
+            {
+                "name": "Italian BMT",
+                "company": "Subway",
+                "category": "Sandwiches",
+                "original_price": Decimal("7.99"),
+                "discounted_price": Decimal("6.99"),
+                "description": "Classic Italian sub with meats and cheese",
+                "ingredients": "Salami, pepperoni, ham, lettuce, tomatoes, onions, bread",
+                "grams": 280,
+                "image_url": "https://images.unsplash.com/photo-1553909489-cd47e0907980?w=400"
+            },
+            {
+                "name": "Veggie Delite",
+                "company": "Subway",
+                "category": "Sandwiches",
+                "original_price": Decimal("5.99"),
+                "discounted_price": Decimal("4.99"),
+                "description": "Fresh vegetable sandwich",
+                "ingredients": "Lettuce, tomatoes, cucumbers, peppers, onions, bread",
+                "grams": 230,
+                "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400"
+            },
+            {
+                "name": "Chicken Teriyaki",
+                "company": "Subway",
+                "category": "Sandwiches",
+                "original_price": Decimal("8.49"),
+                "discounted_price": Decimal("7.49"),
+                "description": "Grilled chicken with teriyaki glaze",
+                "ingredients": "Chicken, teriyaki sauce, lettuce, tomatoes, bread",
+                "grams": 265,
+                "image_url": "https://images.unsplash.com/photo-1551782450-17144efb9c50?w=400"
+            },
+            # Starbucks
+            {
+                "name": "Caffe Latte",
+                "company": "Starbucks",
+                "category": "Coffee",
+                "original_price": Decimal("4.99"),
+                "discounted_price": Decimal("4.49"),
+                "description": "Smooth espresso with steamed milk",
+                "ingredients": "Espresso, milk, foam",
+                "grams": 350,
+                "image_url": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400"
+            },
+            {
+                "name": "Cappuccino",
+                "company": "Starbucks",
+                "category": "Coffee",
+                "original_price": Decimal("4.49"),
+                "discounted_price": Decimal("3.99"),
+                "description": "Rich espresso with foamed milk",
+                "ingredients": "Espresso, milk, foam",
+                "grams": 300,
+                "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400"
+            },
+            {
+                "name": "Chocolate Croissant",
+                "company": "Starbucks",
+                "category": "Desserts",
+                "original_price": Decimal("3.99"),
+                "discounted_price": Decimal("3.49"),
+                "description": "Buttery croissant with chocolate filling",
+                "ingredients": "Flour, butter, chocolate, sugar",
+                "grams": 120,
+                "image_url": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400"
+            },
+            {
+                "name": "Blueberry Muffin",
+                "company": "Starbucks",
+                "category": "Desserts",
+                "original_price": Decimal("3.49"),
+                "discounted_price": Decimal("2.99"),
+                "description": "Fresh baked muffin with blueberries",
+                "ingredients": "Flour, blueberries, sugar, eggs, butter",
+                "grams": 140,
+                "image_url": "https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=400"
+            },
+            # Taco Bell
+            {
+                "name": "Crunchy Taco",
+                "company": "Taco Bell",
+                "category": "Tacos",
+                "original_price": Decimal("1.99"),
+                "discounted_price": Decimal("1.49"),
+                "description": "Crispy taco with seasoned beef",
+                "ingredients": "Beef, lettuce, cheese, taco shell",
+                "grams": 85,
+                "image_url": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400"
+            },
+            {
+                "name": "Burrito Supreme",
+                "company": "Taco Bell",
+                "category": "Tacos",
+                "original_price": Decimal("4.99"),
+                "discounted_price": Decimal("4.49"),
+                "description": "Large burrito with beef and beans",
+                "ingredients": "Beef, beans, cheese, sour cream, tortilla",
+                "grams": 248,
+                "image_url": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400"
+            },
+            {
+                "name": "Quesadilla",
+                "company": "Taco Bell",
+                "category": "Tacos",
+                "original_price": Decimal("5.49"),
+                "discounted_price": Decimal("4.99"),
+                "description": "Grilled tortilla with melted cheese",
+                "ingredients": "Chicken, cheese, tortilla, sauce",
+                "grams": 190,
+                "image_url": "https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=400"
+            },
+            # Burger King
+            {
+                "name": "Whopper",
+                "company": "Burger King",
+                "category": "Burgers",
+                "original_price": Decimal("6.49"),
+                "discounted_price": Decimal("5.49"),
+                "description": "Flame-grilled burger with fresh toppings",
+                "ingredients": "Beef, lettuce, tomato, pickles, onions, ketchup, mayo, bun",
+                "grams": 290,
+                "image_url": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=400"
+            },
+            {
+                "name": "Chicken Nuggets",
+                "company": "Burger King",
+                "category": "Chicken",
+                "original_price": Decimal("5.99"),
+                "discounted_price": Decimal("4.99"),
+                "description": "Crispy chicken nuggets",
+                "ingredients": "Chicken, breading, oil",
+                "grams": 200,
+                "image_url": "https://images.unsplash.com/photo-1562967914-608f82629710?w=400"
+            },
+            {
+                "name": "Onion Rings",
+                "company": "Burger King",
+                "category": "Sides",
+                "original_price": Decimal("3.49"),
+                "discounted_price": Decimal("2.99"),
+                "description": "Crispy fried onion rings",
+                "ingredients": "Onions, batter, oil",
+                "grams": 140,
+                "image_url": "https://images.unsplash.com/photo-1639024471283-03518883512d?w=400"
+            },
+            # Domino's Pizza
+            {
+                "name": "Hawaiian Pizza",
+                "company": "Domino's Pizza",
+                "category": "Pizza",
+                "original_price": Decimal("13.99"),
+                "discounted_price": Decimal("11.99"),
+                "description": "Pizza with ham and pineapple",
+                "ingredients": "Dough, tomato sauce, mozzarella, ham, pineapple",
+                "grams": 460,
+                "image_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400"
+            },
+            {
+                "name": "BBQ Chicken Pizza",
+                "company": "Domino's Pizza",
+                "category": "Pizza",
+                "original_price": Decimal("14.99"),
+                "discounted_price": Decimal("12.99"),
+                "description": "Pizza with BBQ sauce and chicken",
+                "ingredients": "Dough, BBQ sauce, mozzarella, chicken, onions",
+                "grams": 480,
+                "image_url": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=400"
+            },
+            {
+                "name": "Garlic Bread",
+                "company": "Domino's Pizza",
+                "category": "Sides",
+                "original_price": Decimal("4.99"),
+                "discounted_price": Decimal("3.99"),
+                "description": "Warm garlic bread with butter",
+                "ingredients": "Bread, garlic, butter, herbs",
+                "grams": 180,
+                "image_url": "https://images.unsplash.com/photo-1573140401552-3fab0b24306f?w=400"
+            },
+            # More items
+            {
+                "name": "Caesar Salad",
+                "company": "Subway",
+                "category": "Salads",
+                "original_price": Decimal("6.99"),
+                "discounted_price": Decimal("5.99"),
+                "description": "Fresh romaine with caesar dressing",
+                "ingredients": "Romaine lettuce, parmesan, croutons, caesar dressing",
+                "grams": 220,
+                "image_url": "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400"
+            },
+            {
+                "name": "Ice Cream Sundae",
+                "company": "McDonald's",
+                "category": "Desserts",
+                "original_price": Decimal("2.99"),
+                "discounted_price": Decimal("2.49"),
+                "description": "Vanilla ice cream with topping",
+                "ingredients": "Ice cream, chocolate sauce, whipped cream",
+                "grams": 180,
+                "image_url": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400"
             },
         ]
 
