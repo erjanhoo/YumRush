@@ -71,22 +71,55 @@ class Command(BaseCommand):
 
         # Create Categories
         categories_data = [
-            {"name": "Burgers", "description": "Delicious burgers"},
-            {"name": "Pizza", "description": "Fresh pizzas"},
-            {"name": "Chicken", "description": "Crispy chicken"},
-            {"name": "Drinks", "description": "Refreshing drinks"},
-            {"name": "Desserts", "description": "Sweet treats"},
+            {
+                "name": "Burgers",
+                "description": "Delicious burgers",
+                "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400"
+            },
+            {
+                "name": "Pizza",
+                "description": "Fresh pizzas",
+                "image_url": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400"
+            },
+            {
+                "name": "Chicken",
+                "description": "Crispy chicken",
+                "image_url": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400"
+            },
+            {
+                "name": "Drinks",
+                "description": "Refreshing drinks",
+                "image_url": "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400"
+            },
+            {
+                "name": "Desserts",
+                "description": "Sweet treats",
+                "image_url": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400"
+            },
         ]
 
         categories = {}
         for data in categories_data:
+            image_url = data.pop('image_url', None)
             category, created = Category.objects.get_or_create(
                 name=data['name'],
                 defaults=data
             )
+            
+            # Force re-download images
+            if image_url:
+                if category.image:
+                    category.image.delete(save=False)
+                image_content = self.download_image(image_url)
+                if image_content:
+                    category.image.save(f"{data['name'].lower()}.jpg", image_content, save=True)
+                    self.stdout.write(f'Added image to category: {category.name}')
+            
             categories[data['name']] = category
             if created:
                 self.stdout.write(f'Created category: {category.name}')
+            else:
+                self.stdout.write(f'Category exists: {category.name}')
 
         # Create Products
         products_data = [
