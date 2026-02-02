@@ -12,6 +12,12 @@ urlpatterns = [
     path('balance_top_up/', UserBalanceTopUpView.as_view()),
     path('user_transactions_history/', UserTransactionHistoryView.as_view()),
 
+    #ACCOUNT MANAGEMENT
+    path('change_password/', ChangePasswordView.as_view()),
+    path('change_email/', ChangeEmailView.as_view()),
+    path('change_username/', ChangeUsernameView.as_view()),
+    path('delete_account/', DeleteAccountView.as_view()),
+
     #OTP
     path('login_otp_verification/', UserLoginOTPVerificationView.as_view()),
     path('registration_otp_verification/', UserRegistrationOTPVerificationView.as_view()),

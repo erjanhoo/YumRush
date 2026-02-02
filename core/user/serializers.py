@@ -80,8 +80,33 @@ class ProductCreationSerializer(serializers.ModelSerializer):
         fields = ('name', 'original_price', 'discounted_price', 'category', 'description', 'image', 'ingredients', 'grams')
 
 
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, required=True)
+    new_password = serializers.CharField(write_only=True, required=True)
+
+    def validate_new_password(self, value):
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must be at least 8 characters long")
+        return value
 
 
+class ChangeEmailSerializer(serializers.Serializer):
+    new_email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
+
+    def validate_new_email(self, value):
+        if MyUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError("This email is already in use")
+        return value
+
+
+class ChangeUsernameSerializer(serializers.Serializer):
+    new_username = serializers.CharField(required=True, max_length=255)
+    password = serializers.CharField(write_only=True, required=True)
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, required=True)
 
 
 

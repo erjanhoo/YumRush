@@ -6,14 +6,14 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 
 ### 🔐 **Advanced Authentication & Security**
 - **Multi-role System**: Three distinct user roles (User, Manager, Courier) with role-based permissions
-- **Two-Factor Authentication (2FA)**: Optional email-based OTP verification for enhanced security
-- **OTP Rate Limiting**: Advanced throttling system to prevent brute force attacks
-  - 5 OTP verification attempts per minute
-  - 3 OTP resend requests per minute
-  - IP-based and user-based rate limiting
-  - Account lockout after 15 failed attempts per day
 - **JWT Token Authentication**: Secure access and refresh tokens with blacklisting support
-- **Email Verification**: OTP-based registration verification with expiry
+- **Email Authentication Backend**: Login with email instead of username
+- **Account Management**:
+  - Change password (with current password confirmation)
+  - Change email (with password confirmation)
+  - Change username (with password confirmation)
+  - Delete account (with password confirmation)
+- **Note**: Two-Factor Authentication and OTP email verification are currently disabled for Railway deployment compatibility
 
 ### 👥 **User Management**
 - **User Profiles**: Customizable profiles with avatars, addresses, and contact information
@@ -106,13 +106,13 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Sorting Options**: Price, rating, newest, popularity
 
 ### 📧 **Email Notifications**
-- **Automated Emails via Celery**:
-  - OTP codes for registration and 2FA
+- **Automated Emails via Celery** (Currently Disabled for Railway):
   - Order confirmation
   - Courier assignment notifications
   - Order status updates
   - Delivery completion alerts
   - Cancellation confirmations
+- **Note**: Email functionality is commented out to avoid issues with Railway's email restrictions
 
 ### 🎯 **Manager Features**
 - **Product Management**:
@@ -237,15 +237,117 @@ YumRush/
 - **Role-Based Access Control**: Endpoint protection by user role
 - **CSRF Protection**: Django CSRF middleware enabled
 - **Password Hashing**: Secure password storage with Django's password validators
-- **Email Verification**: Required for account activation
-- **Rate Limiting**: Multiple throttle layers for OTP endpoints
+- **Rate Limiting**: Multiple throttle layers for sensitive endpoints
+
+## 🚀 Railway Deployment Guide
+
+### Prerequisites
+- GitHub repository with your code pushed
+- Railway account (sign up at [railway.app](https://railway.app))
+
+### Deployment Steps
+
+#### 1. **Create New Project**
+1. Log in to Railway
+2. Click "New Project"
+3. Select "Deploy from GitHub repo"
+4. Choose your YumRush repository
+5. Set **Root Directory** to `core`
+
+#### 2. **Add Database Services**
+1. Click "New" → "Database" → "Add PostgreSQL"
+2. Click "New" → "Database" → "Add Redis"
+3. Railway will auto-generate `DATABASE_URL` and `REDIS_URL`
+
+#### 3. **Configure Environment Variables**
+Add these variables to your web service:
+
+**Required:**
+```bash
+SECRET_KEY=your-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=.railway.app,yourdomain.com
+DATABASE_URL=postgresql://...  # Auto-added by Railway Postgres
+REDIS_URL=redis://...          # Auto-added by Railway Redis
+```
+
+**Optional (if using email later):**
+```bash
+EMAIL_HOST_USER=your-email@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
+```
+
+#### 4. **Deploy Web Service**
+- Railway automatically detects Dockerfile
+- The entrypoint script will:
+  - Run database migrations
+  - Collect static files
+  - Start Daphne server on Railway's dynamic PORT
+
+#### 5. **Add Celery Worker (Optional)**
+1. Click "New" → "Service from repo"
+2. Select same repository
+3. Set **Root Directory** to `core`
+4. Override **Start Command** to:
+   ```bash
+   celery -A core worker -l info
+   ```
+5. Add same environment variables as web service
+
+#### 6. **Configure Custom Domain (Optional)**
+1. Go to your web service settings
+2. Click "Settings" → "Domains"
+3. Add your custom domain
+4. Update `ALLOWED_HOSTS` with your domain
+
+### Environment Variables Reference
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SECRET_KEY` | Django secret key | `django-insecure-xyz...` |
+| `DEBUG` | Debug mode (always False in production) | `False` |
+| `ALLOWED_HOSTS` | Allowed hostnames | `.railway.app,example.com` |
+| `DATABASE_URL` | PostgreSQL connection string | Auto-added by Railway |
+| `REDIS_URL` | Redis connection string | Auto-added by Railway |
+| `EMAIL_HOST_USER` | Gmail account (optional) | `your@gmail.com` |
+| `EMAIL_HOST_PASSWORD` | Gmail app password (optional) | `your-app-password` |
+
+### Post-Deployment
+
+1. **Verify deployment**: Check Railway logs for successful startup
+2. **Test endpoints**: Visit `https://your-app.railway.app/swagger/`
+3. **Create superuser** (via Railway CLI):
+   ```bash
+   railway run python manage.py createsuperuser
+   ```
+
+### Local Development
+
+```bash
+cd core
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+Or use Docker Compose:
+```bash
+cd core
+docker-compose up
+```
 
 ## 📚 API Documentation
 
 Interactive API documentation available at `/swagger/` when running the server.
 
 ### Key Endpoint Groups
-- **Authentication**: `/api/user/` - Registration, login, OTP verification
+- **Authentication**: `/api/user/` - Registration, login, logout
+- **Profile Management**: `/api/user/profile/` - View and update profile
+- **Account Management**: 
+  - `/api/user/change_password/` - Change password with confirmation
+  - `/api/user/change_email/` - Change email with password confirmation
+  - `/api/user/change_username/` - Change username with password confirmation
+  - `/api/user/delete_account/` - Delete account with password confirmation
 - **Products**: `/api/product/` - Product catalog, search, details
 - **Orders**: `/api/order/` - Create, track, manage orders
 - **Chat**: WebSocket connection for real-time messaging

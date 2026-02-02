@@ -73,26 +73,40 @@ class UserRegisterView(APIView):
                 )
                 temp_reg.password = make_password(serializer.validated_data['password'])
 
-                otp_code = generateOTP()
-                temp_reg.otp = otp_code
-                temp_reg.otp_created_at = timezone.now()
+                # OTP functionality commented out for Railway deployment
+                # otp_code = generateOTP()
+                # temp_reg.otp = otp_code
+                # temp_reg.otp_created_at = timezone.now()
                 temp_reg.save()
 
-                try:
-                    send_otp_email.delay(temp_reg.email, otp_code)
-                except Exception as e:
-                    # Если отправка задачи в Celery не удалась, удаляем временную регистрацию
-                    temp_reg.delete()
-                    return Response(
-                        {'error': 'Ошибка отправки email. Попробуйте позже.'},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
+                # try:
+                #     send_otp_email.delay(temp_reg.email, otp_code)
+                # except Exception as e:
+                #     # Если отправки задачи в Celery не удалась, удаляем временную регистрацию
+                #     temp_reg.delete()
+                #     return Response(
+                #         {'error': 'Ошибка отправки email. Попробуйте позже.'},
+                #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                #     )
 
+                # Auto-create user without OTP verification
+                user = MyUser(
+                    username=temp_reg.username,
+                    email=temp_reg.email,
+                )
+                user.password = temp_reg.password
+                user.save()
+                temp_reg.delete()
+
+                refresh = RefreshToken.for_user(user)
                 response_data = {
-                    'user_id': temp_reg.id,
-                    'username': temp_reg.username,
-                    'email': temp_reg.email,
-                    'message': 'OTP код отправлен на ваш email. Подтвердите регистрацию.'
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                    'user_id': user.id,
+                    'user_role': user.role,
+                    'email': user.email,
+                    'username': user.username,
+                    'message': 'Registration successful'
                 }
                 return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -144,31 +158,32 @@ class UserLoginView(APIView):
                 password=serializer.validated_data['password'],
             )
             if user:
-                if user.is_2fa_enabled:
-                    otp_code = generateOTP()
-                    user.otp = otp_code
-                    user.otp_created_at = timezone.now()
-                    user.save()
-                    user_email = user.email
-
-                    send_otp_email.delay(user_email, otp_code)
-
-                    data = {
+                # OTP/2FA functionality commented out for Railway deployment
+                # if user.is_2fa_enabled:
+                #     otp_code = generateOTP()
+                #     user.otp = otp_code
+                #     user.otp_created_at = timezone.now()
+                #     user.save()
+                #     user_email = user.email
+                #
+                #     send_otp_email.delay(user_email, otp_code)
+                #
+                #     data = {
+                #         'user_id':user.id,
+                #     }
+                #     return Response(data, status=status.HTTP_200_OK)
+                # else:
+                refresh = RefreshToken.for_user(user)
+                return Response(
+                    {
+                        'refresh':str(refresh),
+                        'access':str(refresh.access_token),
                         'user_id':user.id,
-                    }
-                    return Response(data, status=status.HTTP_200_OK)
-                else:
-                    refresh = RefreshToken.for_user(user)
-                    return Response(
-                        {
-                            'refresh':str(refresh),
-                            'access':str(refresh.access_token),
-                            'user_id':user.id,
-                            'user_role':user.role,
-                            'email':user.email,
-                            'username':user.username
-                        }, status=status.HTTP_200_OK
-                    )
+                        'user_role':user.role,
+                        'email':user.email,
+                        'username':user.username
+                    }, status=status.HTTP_200_OK
+                )
             return Response({'error':'User not found'},status=status.HTTP_404_NOT_FOUND)
         return Response({'error':'Not valid credentials'},status=status.HTTP_400_BAD_REQUEST)
 
@@ -216,6 +231,8 @@ class UserLogoutView(APIView):
 #PROFILE
 
 class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
         tags=['user'],
         operation_description="Get the authenticated user's profile information",
@@ -583,14 +600,14 @@ class ResendRegistrationOTPView(APIView):
         temp_reg.otp_created_at = timezone.now()
         temp_reg.save()
         
-        # Send OTP email
-        try:
-            send_otp_email.delay(temp_reg.email, otp_code)
-        except Exception as e:
-            return Response(
-                {'error': 'Ошибка отправки email. Попробуйте позже.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        # Send OTP email - COMMENTED OUT FOR RAILWAY
+        # try:
+        #     send_otp_email.delay(temp_reg.email, otp_code)
+        # except Exception as e:
+        #     return Response(
+        #         {'error': 'Ошибка отправки email. Попробуйте позже.'},
+        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        #     )
         
         return Response(
             {
@@ -665,14 +682,14 @@ class ResendLoginOTPView(APIView):
         user.otp_created_at = timezone.now()
         user.save()
         
-        # Send OTP email
-        try:
-            send_otp_email.delay(user.email, otp_code)
-        except Exception as e:
-            return Response(
-                {'error': 'Ошибка отправки email. Попробуйте позже.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        # Send OTP email - COMMENTED OUT FOR RAILWAY
+        # try:
+        #     send_otp_email.delay(user.email, otp_code)
+        # except Exception as e:
+        #     return Response(
+        #         {'error': 'Ошибка отправки email. Попробуйте позже.'},
+        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        #     )
         
         return Response(
             {
@@ -901,5 +918,213 @@ class ProductDeleteView(DestroyAPIView):
             return Response({'error': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
+#ACCOUNT MANAGEMENT
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['user'],
+        operation_description="Change user password. Requires current password confirmation.",
+        request_body=ChangePasswordSerializer,
+        responses={
+            200: openapi.Response(
+                description="Password changed successfully",
+                examples={
+                    "application/json": {
+                        "message": "Password changed successfully"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Bad request",
+                examples={
+                    "application/json": {
+                        "error": "Current password is incorrect"
+                    }
+                }
+            ),
+            401: "Authentication credentials not provided"
+        },
+        security=[{"Bearer": []}]
+    )
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            current_password = serializer.validated_data['current_password']
+            new_password = serializer.validated_data['new_password']
+
+            if not user.check_password(current_password):
+                return Response(
+                    {'error': 'Current password is incorrect'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.set_password(new_password)
+            user.save()
+
+            return Response(
+                {'message': 'Password changed successfully'},
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ChangeEmailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['user'],
+        operation_description="Change user email. Requires password confirmation.",
+        request_body=ChangeEmailSerializer,
+        responses={
+            200: openapi.Response(
+                description="Email changed successfully",
+                examples={
+                    "application/json": {
+                        "message": "Email changed successfully",
+                        "new_email": "newemail@example.com"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Bad request",
+                examples={
+                    "application/json": {
+                        "error": "Password is incorrect"
+                    }
+                }
+            ),
+            401: "Authentication credentials not provided"
+        },
+        security=[{"Bearer": []}]
+    )
+    def post(self, request):
+        serializer = ChangeEmailSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            password = serializer.validated_data['password']
+            new_email = serializer.validated_data['new_email']
+
+            if not user.check_password(password):
+                return Response(
+                    {'error': 'Password is incorrect'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.email = new_email
+            user.save()
+
+            return Response(
+                {
+                    'message': 'Email changed successfully',
+                    'new_email': new_email
+                },
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangeUsernameView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['user'],
+        operation_description="Change username. Requires password confirmation.",
+        request_body=ChangeUsernameSerializer,
+        responses={
+            200: openapi.Response(
+                description="Username changed successfully",
+                examples={
+                    "application/json": {
+                        "message": "Username changed successfully",
+                        "new_username": "newusername"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Bad request",
+                examples={
+                    "application/json": {
+                        "error": "Password is incorrect"
+                    }
+                }
+            ),
+            401: "Authentication credentials not provided"
+        },
+        security=[{"Bearer": []}]
+    )
+    def post(self, request):
+        serializer = ChangeUsernameSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            password = serializer.validated_data['password']
+            new_username = serializer.validated_data['new_username']
+
+            if not user.check_password(password):
+                return Response(
+                    {'error': 'Password is incorrect'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.username = new_username
+            user.save()
+
+            return Response(
+                {
+                    'message': 'Username changed successfully',
+                    'new_username': new_username
+                },
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['user'],
+        operation_description="Delete user account permanently. Requires password confirmation.",
+        request_body=DeleteAccountSerializer,
+        responses={
+            200: openapi.Response(
+                description="Account deleted successfully",
+                examples={
+                    "application/json": {
+                        "message": "Account deleted successfully"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Bad request",
+                examples={
+                    "application/json": {
+                        "error": "Password is incorrect"
+                    }
+                }
+            ),
+            401: "Authentication credentials not provided"
+        },
+        security=[{"Bearer": []}]
+    )
+    def post(self, request):
+        serializer = DeleteAccountSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            password = serializer.validated_data['password']
+
+            if not user.check_password(password):
+                return Response(
+                    {'error': 'Password is incorrect'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            user.delete()
+
+            return Response(
+                {'message': 'Account deleted successfully'},
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
