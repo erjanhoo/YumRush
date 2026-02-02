@@ -12,11 +12,15 @@ class Command(BaseCommand):
     def download_image(self, url):
         """Download image from URL and return ContentFile"""
         try:
+            self.stdout.write(f'Downloading image from: {url}')
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
+                self.stdout.write(self.style.SUCCESS(f'✓ Downloaded successfully'))
                 return ContentFile(response.content)
-        except:
-            pass
+            else:
+                self.stdout.write(self.style.ERROR(f'✗ Failed with status {response.status_code}'))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'✗ Error downloading: {str(e)}'))
         return None
 
     def handle(self, *args, **kwargs):
