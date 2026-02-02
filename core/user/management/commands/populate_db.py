@@ -1,571 +1,259 @@
+import os
+import requests
+from io import BytesIO
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
-from user.models import MyUser
+from django.contrib.auth import get_user_model
 from product.models import Company, Category, Product
 from decimal import Decimal
-from django.core.files.base import ContentFile
-import requests
+
+User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Populate database with sample data'
+    help = 'Populate database with sample companies, categories, and products'
 
-    def download_image(self, url):
-        """Download image from URL and return ContentFile"""
+    def download_image(self, url, name):
+        """Download image from URL"""
         try:
-            self.stdout.write(f'Downloading image from: {url}')
+            self.stdout.write(f'Downloading image from {url}')
             response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                self.stdout.write(self.style.SUCCESS(f'✓ Downloaded successfully'))
-                return ContentFile(response.content)
-            else:
-                self.stdout.write(self.style.ERROR(f'✗ Failed with status {response.status_code}'))
+            response.raise_for_status()
+            return ContentFile(response.content, name=name)
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f'✗ Error downloading: {str(e)}'))
-        return None
+            self.stdout.write(self.style.ERROR(f'Failed to download {url}: {e}'))
+            return None
 
-    def handle(self, *args, **kwargs):
+    def handle(self, *args, **options):
         self.stdout.write('Starting database population...')
 
-        # Create Companies
+        # Create test users
+        users_data = [
+            {'email': 'user@test.com', 'username': 'testuser', 'password': 'user123', 'phone_number': '+1111111111', 'role': 'user'},
+            {'email': 'manager@test.com', 'username': 'manager', 'password': 'manager123', 'phone_number': '+2222222222', 'role': 'manager'},
+            {'email': 'courier@test.com', 'username': 'courier', 'password': 'courier123', 'phone_number': '+3333333333', 'role': 'courier'},
+            {'email': 'admin@test.com', 'username': 'admin', 'password': 'admin123', 'phone_number': '+4444444444', 'role': 'admin'},
+            {'email': 'john@test.com', 'username': 'john', 'password': 'john123', 'phone_number': '+5555555555', 'role': 'user'},
+        ]
+
+        for user_data in users_data:
+            user, created = User.objects.get_or_create(
+                email=user_data['email'],
+                defaults={
+                    'username': user_data['username'],
+                    'phone_number': user_data['phone_number'],
+                    'role': user_data['role'],
+                }
+            )
+            if created:
+                user.set_password(user_data['password'])
+                user.save()
+                self.stdout.write(self.style.SUCCESS(f'Created user: {user.username}'))
+            else:
+                self.stdout.write(f'User exists: {user.username}')
+
+        # Companies (Restaurants) data
         companies_data = [
             {
-                "name": "McDonald's",
-                "phone_number": "+1234567890",
-                "description": "Fast food chain",
-                "logo_url": "https://images.unsplash.com/photo-1619454016518-697bc231e7cb?w=200"
+                'name': "McDonald's",
+                'logo_url': 'https://images.unsplash.com/photo-1619454016518-697bc231e7aa?w=400',
+                'rating': Decimal('4.5'),
+                'description': 'Fast food restaurant chain serving burgers, fries, and more',
+                'phone_number': '+1234567890',
+                'address': '123 Main St, New York, NY'
             },
             {
-                "name": "KFC",
-                "phone_number": "+1234567891",
-                "description": "Fried chicken specialists",
-                "logo_url": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=200"
+                'name': 'KFC',
+                'logo_url': 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400',
+                'rating': Decimal('4.3'),
+                'description': 'Fried chicken fast food chain',
+                'phone_number': '+1234567891',
+                'address': '456 Oak Ave, Los Angeles, CA'
             },
             {
-                "name": "Pizza Hut",
-                "phone_number": "+1234567892",
-                "description": "Pizza restaurant",
-                "logo_url": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200"
+                'name': 'Pizza Hut',
+                'logo_url': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400',
+                'rating': Decimal('4.4'),
+                'description': 'Pizza restaurant chain with delivery and dine-in options',
+                'phone_number': '+1234567892',
+                'address': '789 Pizza Blvd, Chicago, IL'
             },
             {
-                "name": "Subway",
-                "phone_number": "+1234567893",
-                "description": "Fresh sandwiches and salads",
-                "logo_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200"
+                'name': 'Subway',
+                'logo_url': 'https://images.unsplash.com/photo-1579888944880-d98341245702?w=400',
+                'rating': Decimal('4.2'),
+                'description': 'Submarine sandwich restaurant chain',
+                'phone_number': '+1234567893',
+                'address': '321 Sandwich St, Boston, MA'
             },
             {
-                "name": "Starbucks",
-                "phone_number": "+1234567894",
-                "description": "Coffee and pastries",
-                "logo_url": "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=200"
+                'name': 'Starbucks',
+                'logo_url': 'https://images.unsplash.com/photo-1578374173705-aa0dc6aa9a7f?w=400',
+                'rating': Decimal('4.6'),
+                'description': 'Coffee shop and coffeehouse chain',
+                'phone_number': '+1234567894',
+                'address': '654 Coffee Rd, Seattle, WA'
             },
             {
-                "name": "Taco Bell",
-                "phone_number": "+1234567895",
-                "description": "Mexican-inspired fast food",
-                "logo_url": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=200"
+                'name': 'Taco Bell',
+                'logo_url': 'https://images.unsplash.com/photo-1580238053495-b9720401fd45?w=400',
+                'rating': Decimal('4.1'),
+                'description': 'Mexican-inspired fast food chain',
+                'phone_number': '+1234567895',
+                'address': '987 Taco Way, Austin, TX'
             },
             {
-                "name": "Burger King",
-                "phone_number": "+1234567896",
-                "description": "Flame-grilled burgers",
-                "logo_url": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=200"
+                'name': 'Burger King',
+                'logo_url': 'https://images.unsplash.com/photo-1603064752734-4c48eff53d05?w=400',
+                'rating': Decimal('4.3'),
+                'description': 'Fast food burger restaurant chain',
+                'phone_number': '+1234567896',
+                'address': '147 Burger Lane, Miami, FL'
             },
             {
-                "name": "Domino's Pizza",
-                "phone_number": "+1234567897",
-                "description": "Pizza delivery experts",
-                "logo_url": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=200"
+                'name': "Domino's Pizza",
+                'logo_url': 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400',
+                'rating': Decimal('4.5'),
+                'description': 'Pizza delivery and carryout chain',
+                'phone_number': '+1234567897',
+                'address': '258 Delivery Dr, Detroit, MI'
             },
         ]
 
         companies = {}
-        for data in companies_data:
-            logo_url = data.pop('logo_url', None)
+        for company_data in companies_data:
             company, created = Company.objects.get_or_create(
-                name=data['name'],
-                defaults=data
+                name=company_data['name'],
+                defaults={
+                    'rating': company_data['rating'],
+                    'description': company_data['description'],
+                    'phone_number': company_data['phone_number'],
+                    'address': company_data['address'],
+                }
             )
             
-            # Force re-download logos
-            if logo_url:
-                if company.logo:
-                    company.logo.delete(save=False)
-                logo_content = self.download_image(logo_url)
-                if logo_content:
-                    company.logo.save(f"{data['name'].lower().replace(' ', '_')}_logo.jpg", logo_content, save=True)
-                    self.stdout.write(f'Added logo to: {company.name}')
+            # Always download and update logo
+            if company.logo:
+                company.logo.delete(save=False)
             
-            companies[data['name']] = company
-            if created:
-                self.stdout.write(f'Created company: {company.name}')
-            else:
-                self.stdout.write(f'Company exists: {company.name}')
+            logo_file = self.download_image(company_data['logo_url'], f"{company_data['name'].lower().replace(' ', '_')}.jpg")
+            if logo_file:
+                company.logo = logo_file
+                company.save()
+                self.stdout.write(self.style.SUCCESS(f'Created/Updated company: {company.name}'))
+            
+            companies[company.name] = company
 
-        # Create Categories
+        # Categories data
         categories_data = [
-            {
-                "name": "Burgers",
-                "description": "Delicious burgers",
-                "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400"
-            },
-            {
-                "name": "Pizza",
-                "description": "Fresh pizzas",
-                "image_url": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400"
-            },
-            {
-                "name": "Chicken",
-                "description": "Crispy chicken",
-                "image_url": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400"
-            },
-            {
-                "name": "Drinks",
-                "description": "Refreshing drinks",
-                "image_url": "https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400"
-            },
-            {
-                "name": "Desserts",
-                "description": "Sweet treats",
-                "image_url": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400"
-            },
-            {
-                "name": "Sandwiches",
-                "description": "Fresh sandwiches",
-                "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400"
-            },
-            {
-                "name": "Tacos",
-                "description": "Mexican tacos",
-                "image_url": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400"
-            },
-            {
-                "name": "Coffee",
-                "description": "Hot and cold coffee",
-                "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400"
-            },
-            {
-                "name": "Salads",
-                "description": "Healthy salads",
-                "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400"
-            },
-            {
-                "name": "Sides",
-                "description": "Side dishes",
-                "image_url": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400"
-            },
+            {'name': 'Burgers', 'image_url': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400', 'description': 'Delicious burgers'},
+            {'name': 'Pizza', 'image_url': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400', 'description': 'Hot and fresh pizza'},
+            {'name': 'Chicken', 'image_url': 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400', 'description': 'Fried and grilled chicken'},
+            {'name': 'Drinks', 'image_url': 'https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400', 'description': 'Refreshing beverages'},
+            {'name': 'Desserts', 'image_url': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400', 'description': 'Sweet treats'},
+            {'name': 'Sandwiches', 'image_url': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400', 'description': 'Fresh sandwiches'},
+            {'name': 'Tacos', 'image_url': 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400', 'description': 'Mexican tacos'},
+            {'name': 'Coffee', 'image_url': 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400', 'description': 'Hot and cold coffee'},
+            {'name': 'Salads', 'image_url': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400', 'description': 'Fresh and healthy salads'},
+            {'name': 'Sides', 'image_url': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400', 'description': 'Side dishes and snacks'},
         ]
 
         categories = {}
-        for data in categories_data:
-            image_url = data.pop('image_url', None)
+        for cat_data in categories_data:
             category, created = Category.objects.get_or_create(
-                name=data['name'],
-                defaults=data
+                name=cat_data['name'],
+                defaults={'description': cat_data['description']}
             )
             
-            # Force re-download images
-            if image_url:
-                if category.image:
-                    category.image.delete(save=False)
-                image_content = self.download_image(image_url)
-                if image_content:
-                    category.image.save(f"{data['name'].lower()}.jpg", image_content, save=True)
-                    self.stdout.write(f'Added image to category: {category.name}')
+            # Always download and update image
+            if category.image:
+                category.image.delete(save=False)
             
-            categories[data['name']] = category
-            if created:
-                self.stdout.write(f'Created category: {category.name}')
-            else:
-                self.stdout.write(f'Category exists: {category.name}')
+            image_file = self.download_image(cat_data['image_url'], f"{cat_data['name'].lower()}.jpg")
+            if image_file:
+                category.image = image_file
+                category.save()
+                self.stdout.write(self.style.SUCCESS(f'Created/Updated category: {category.name}'))
+            
+            categories[category.name] = category
 
-        # Create Products
+        # Products data
         products_data = [
             # McDonald's
-            {
-                "name": "Big Mac",
-                "company": "McDonald's",
-                "category": "Burgers",
-                "original_price": Decimal("5.99"),
-                "discounted_price": Decimal("4.99"),
-                "description": "Two all-beef patties, special sauce, lettuce, cheese",
-                "ingredients": "Beef, lettuce, cheese, pickles, onions, sauce, sesame bun",
-                "grams": 215,
-                "image_url": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=400"
-            },
-            {
-                "name": "McChicken",
-                "company": "McDonald's",
-                "category": "Chicken",
-                "original_price": Decimal("4.99"),
-                "discounted_price": Decimal("3.99"),
-                "description": "Crispy chicken sandwich",
-                "ingredients": "Chicken, lettuce, mayo, bun",
-                "grams": 185,
-                "image_url": "https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=400"
-            },
-            {
-                "name": "French Fries",
-                "company": "McDonald's",
-                "category": "Burgers",
-                "original_price": Decimal("2.99"),
-                "discounted_price": Decimal("2.49"),
-                "description": "Golden crispy fries",
-                "ingredients": "Potatoes, salt, oil",
-                "grams": 150,
-                "image_url": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400"
-            },
+            {'name': 'Big Mac', 'company': "McDonald's", 'category': 'Burgers', 'price': Decimal('5.99'), 'discount': Decimal('4.99'), 'rating': Decimal('4.7'), 'image_url': 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=400', 'description': 'Two all-beef patties, special sauce, lettuce, cheese, pickles, onions on a sesame seed bun', 'ingredients': 'Beef, lettuce, cheese, pickles, onions, special sauce', 'grams': 215},
+            {'name': 'French Fries', 'company': "McDonald's", 'category': 'Sides', 'price': Decimal('2.99'), 'discount': Decimal('2.49'), 'rating': Decimal('4.5'), 'image_url': 'https://images.unsplash.com/photo-1576107232684-1279f390859f?w=400', 'description': 'Golden crispy french fries', 'ingredients': 'Potatoes, salt, oil', 'grams': 150},
+            {'name': 'McFlurry Oreo', 'company': "McDonald's", 'category': 'Desserts', 'price': Decimal('3.99'), 'discount': Decimal('3.49'), 'rating': Decimal('4.6'), 'image_url': 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400', 'description': 'Vanilla soft serve with Oreo pieces', 'ingredients': 'Ice cream, Oreo cookies', 'grams': 200},
+            {'name': 'Coca Cola', 'company': "McDonald's", 'category': 'Drinks', 'price': Decimal('1.99'), 'discount': Decimal('1.49'), 'rating': Decimal('4.3'), 'image_url': 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400', 'description': 'Refreshing Coca Cola', 'ingredients': 'Carbonated water, sugar, caffeine', 'grams': 500},
+            
             # KFC
-            {
-                "name": "Original Recipe Chicken",
-                "company": "KFC",
-                "category": "Chicken",
-                "original_price": Decimal("8.99"),
-                "discounted_price": Decimal("7.99"),
-                "description": "Colonel's original recipe fried chicken",
-                "ingredients": "Chicken, 11 herbs and spices",
-                "grams": 300,
-                "image_url": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400"
-            },
-            {
-                "name": "Zinger Burger",
-                "company": "KFC",
-                "category": "Burgers",
-                "original_price": Decimal("6.99"),
-                "discounted_price": Decimal("5.99"),
-                "description": "Spicy crispy chicken burger",
-                "ingredients": "Chicken, lettuce, mayo, bun",
-                "grams": 220,
-                "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400"
-            },
+            {'name': 'Original Recipe Chicken', 'company': 'KFC', 'category': 'Chicken', 'price': Decimal('8.99'), 'discount': Decimal('7.99'), 'rating': Decimal('4.8'), 'image_url': 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400', 'description': 'Crispy fried chicken with 11 herbs and spices', 'ingredients': 'Chicken, breading, spices', 'grams': 300},
+            {'name': 'Coleslaw', 'company': 'KFC', 'category': 'Sides', 'price': Decimal('2.49'), 'discount': Decimal('1.99'), 'rating': Decimal('4.2'), 'image_url': 'https://images.unsplash.com/photo-1604909052743-94e838986d24?w=400', 'description': 'Fresh cabbage salad with creamy dressing', 'ingredients': 'Cabbage, mayonnaise, vinegar', 'grams': 150},
+            {'name': 'Chicken Burger', 'company': 'KFC', 'category': 'Burgers', 'price': Decimal('6.99'), 'discount': Decimal('5.99'), 'rating': Decimal('4.6'), 'image_url': 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=400', 'description': 'Crispy chicken fillet in a soft bun', 'ingredients': 'Chicken, lettuce, mayo, bun', 'grams': 250},
+            
             # Pizza Hut
-            {
-                "name": "Pepperoni Pizza",
-                "company": "Pizza Hut",
-                "category": "Pizza",
-                "original_price": Decimal("12.99"),
-                "discounted_price": Decimal("10.99"),
-                "description": "Classic pepperoni pizza",
-                "ingredients": "Dough, tomato sauce, mozzarella, pepperoni",
-                "grams": 450,
-                "image_url": "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400"
-            },
-            {
-                "name": "Margherita Pizza",
-                "company": "Pizza Hut",
-                "category": "Pizza",
-                "original_price": Decimal("10.99"),
-                "discounted_price": Decimal("9.99"),
-                "description": "Classic cheese pizza",
-                "ingredients": "Dough, tomato sauce, mozzarella, basil",
-                "grams": 400,
-                "image_url": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400"
-            },
-            # Drinks
-            {
-                "name": "Coca Cola",
-                "company": "McDonald's",
-                "category": "Drinks",
-                "original_price": Decimal("1.99"),
-                "discounted_price": Decimal("1.49"),
-                "description": "Refreshing cola drink",
-                "ingredients": "Carbonated water, sugar, caffeine",
-                "grams": 500,
-                "image_url": "https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400"
-            },
-            {
-                "name": "Pepsi",
-                "company": "KFC",
-                "category": "Drinks",
-                "original_price": Decimal("1.99"),
-                "discounted_price": Decimal("1.49"),
-                "description": "Refreshing cola drink",
-                "ingredients": "Carbonated water, sugar, caffeine",
-                "grams": 500,
-                "image_url": "https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=400"
-            },
+            {'name': 'Pepperoni Pizza', 'company': 'Pizza Hut', 'category': 'Pizza', 'price': Decimal('12.99'), 'discount': Decimal('10.99'), 'rating': Decimal('4.7'), 'image_url': 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400', 'description': 'Classic pepperoni pizza with mozzarella', 'ingredients': 'Dough, tomato sauce, mozzarella, pepperoni', 'grams': 800},
+            {'name': 'Cheese Pizza', 'company': 'Pizza Hut', 'category': 'Pizza', 'price': Decimal('10.99'), 'discount': Decimal('9.49'), 'rating': Decimal('4.5'), 'image_url': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400', 'description': 'Simple cheese pizza with tomato sauce', 'ingredients': 'Dough, tomato sauce, mozzarella', 'grams': 700},
+            {'name': 'Garlic Bread', 'company': 'Pizza Hut', 'category': 'Sides', 'price': Decimal('4.99'), 'discount': Decimal('3.99'), 'rating': Decimal('4.4'), 'image_url': 'https://images.unsplash.com/photo-1573140401552-3fab0b24f5cf?w=400', 'description': 'Crispy bread with garlic butter', 'ingredients': 'Bread, garlic, butter, parsley', 'grams': 200},
+            
             # Subway
-            {
-                "name": "Italian BMT",
-                "company": "Subway",
-                "category": "Sandwiches",
-                "original_price": Decimal("7.99"),
-                "discounted_price": Decimal("6.99"),
-                "description": "Classic Italian sub with meats and cheese",
-                "ingredients": "Salami, pepperoni, ham, lettuce, tomatoes, onions, bread",
-                "grams": 280,
-                "image_url": "https://images.unsplash.com/photo-1553909489-cd47e0907980?w=400"
-            },
-            {
-                "name": "Veggie Delite",
-                "company": "Subway",
-                "category": "Sandwiches",
-                "original_price": Decimal("5.99"),
-                "discounted_price": Decimal("4.99"),
-                "description": "Fresh vegetable sandwich",
-                "ingredients": "Lettuce, tomatoes, cucumbers, peppers, onions, bread",
-                "grams": 230,
-                "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400"
-            },
-            {
-                "name": "Chicken Teriyaki",
-                "company": "Subway",
-                "category": "Sandwiches",
-                "original_price": Decimal("8.49"),
-                "discounted_price": Decimal("7.49"),
-                "description": "Grilled chicken with teriyaki glaze",
-                "ingredients": "Chicken, teriyaki sauce, lettuce, tomatoes, bread",
-                "grams": 265,
-                "image_url": "https://images.unsplash.com/photo-1551782450-17144efb9c50?w=400"
-            },
+            {'name': 'Italian BMT', 'company': 'Subway', 'category': 'Sandwiches', 'price': Decimal('7.99'), 'discount': Decimal('6.99'), 'rating': Decimal('4.6'), 'image_url': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400', 'description': 'Ham, salami, pepperoni with cheese and veggies', 'ingredients': 'Ham, salami, pepperoni, cheese, lettuce, tomato, bread', 'grams': 300},
+            {'name': 'Veggie Delite', 'company': 'Subway', 'category': 'Sandwiches', 'price': Decimal('5.99'), 'discount': Decimal('4.99'), 'rating': Decimal('4.3'), 'image_url': 'https://images.unsplash.com/photo-1623428187969-5da2dcea5ebf?w=400', 'description': 'Fresh vegetables on wheat bread', 'ingredients': 'Lettuce, tomato, cucumber, peppers, bread', 'grams': 250},
+            {'name': 'Chicken Teriyaki', 'company': 'Subway', 'category': 'Sandwiches', 'price': Decimal('8.49'), 'discount': Decimal('7.49'), 'rating': Decimal('4.7'), 'image_url': 'https://images.unsplash.com/photo-1553909489-ec2175ef3f52?w=400', 'description': 'Grilled chicken with teriyaki sauce', 'ingredients': 'Chicken, teriyaki sauce, lettuce, bread', 'grams': 280},
+            
             # Starbucks
-            {
-                "name": "Caffe Latte",
-                "company": "Starbucks",
-                "category": "Coffee",
-                "original_price": Decimal("4.99"),
-                "discounted_price": Decimal("4.49"),
-                "description": "Smooth espresso with steamed milk",
-                "ingredients": "Espresso, milk, foam",
-                "grams": 350,
-                "image_url": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400"
-            },
-            {
-                "name": "Cappuccino",
-                "company": "Starbucks",
-                "category": "Coffee",
-                "original_price": Decimal("4.49"),
-                "discounted_price": Decimal("3.99"),
-                "description": "Rich espresso with foamed milk",
-                "ingredients": "Espresso, milk, foam",
-                "grams": 300,
-                "image_url": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400"
-            },
-            {
-                "name": "Chocolate Croissant",
-                "company": "Starbucks",
-                "category": "Desserts",
-                "original_price": Decimal("3.99"),
-                "discounted_price": Decimal("3.49"),
-                "description": "Buttery croissant with chocolate filling",
-                "ingredients": "Flour, butter, chocolate, sugar",
-                "grams": 120,
-                "image_url": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400"
-            },
-            {
-                "name": "Blueberry Muffin",
-                "company": "Starbucks",
-                "category": "Desserts",
-                "original_price": Decimal("3.49"),
-                "discounted_price": Decimal("2.99"),
-                "description": "Fresh baked muffin with blueberries",
-                "ingredients": "Flour, blueberries, sugar, eggs, butter",
-                "grams": 140,
-                "image_url": "https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=400"
-            },
+            {'name': 'Caffe Latte', 'company': 'Starbucks', 'category': 'Coffee', 'price': Decimal('4.99'), 'discount': Decimal('4.49'), 'rating': Decimal('4.8'), 'image_url': 'https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=400', 'description': 'Espresso with steamed milk', 'ingredients': 'Espresso, milk', 'grams': 350},
+            {'name': 'Cappuccino', 'company': 'Starbucks', 'category': 'Coffee', 'price': Decimal('4.49'), 'discount': Decimal('3.99'), 'rating': Decimal('4.7'), 'image_url': 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400', 'description': 'Espresso with foamed milk', 'ingredients': 'Espresso, milk, foam', 'grams': 300},
+            {'name': 'Croissant', 'company': 'Starbucks', 'category': 'Desserts', 'price': Decimal('3.49'), 'discount': Decimal('2.99'), 'rating': Decimal('4.5'), 'image_url': 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400', 'description': 'Buttery flaky croissant', 'ingredients': 'Flour, butter, yeast', 'grams': 80},
+            {'name': 'Caesar Salad', 'company': 'Starbucks', 'category': 'Salads', 'price': Decimal('7.99'), 'discount': Decimal('6.99'), 'rating': Decimal('4.4'), 'image_url': 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400', 'description': 'Fresh romaine lettuce with caesar dressing', 'ingredients': 'Lettuce, parmesan, croutons, caesar dressing', 'grams': 250},
+            
             # Taco Bell
-            {
-                "name": "Crunchy Taco",
-                "company": "Taco Bell",
-                "category": "Tacos",
-                "original_price": Decimal("1.99"),
-                "discounted_price": Decimal("1.49"),
-                "description": "Crispy taco with seasoned beef",
-                "ingredients": "Beef, lettuce, cheese, taco shell",
-                "grams": 85,
-                "image_url": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400"
-            },
-            {
-                "name": "Burrito Supreme",
-                "company": "Taco Bell",
-                "category": "Tacos",
-                "original_price": Decimal("4.99"),
-                "discounted_price": Decimal("4.49"),
-                "description": "Large burrito with beef and beans",
-                "ingredients": "Beef, beans, cheese, sour cream, tortilla",
-                "grams": 248,
-                "image_url": "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400"
-            },
-            {
-                "name": "Quesadilla",
-                "company": "Taco Bell",
-                "category": "Tacos",
-                "original_price": Decimal("5.49"),
-                "discounted_price": Decimal("4.99"),
-                "description": "Grilled tortilla with melted cheese",
-                "ingredients": "Chicken, cheese, tortilla, sauce",
-                "grams": 190,
-                "image_url": "https://images.unsplash.com/photo-1618040996337-56904b7850b9?w=400"
-            },
+            {'name': 'Crunchy Taco', 'company': 'Taco Bell', 'category': 'Tacos', 'price': Decimal('1.99'), 'discount': Decimal('1.49'), 'rating': Decimal('4.4'), 'image_url': 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=400', 'description': 'Crispy taco with beef and cheese', 'ingredients': 'Beef, cheese, lettuce, taco shell', 'grams': 150},
+            {'name': 'Burrito Supreme', 'company': 'Taco Bell', 'category': 'Tacos', 'price': Decimal('4.99'), 'discount': Decimal('4.29'), 'rating': Decimal('4.6'), 'image_url': 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400', 'description': 'Flour tortilla filled with beef, beans, and cheese', 'ingredients': 'Beef, beans, cheese, sour cream, tortilla', 'grams': 300},
+            {'name': 'Nachos Supreme', 'company': 'Taco Bell', 'category': 'Sides', 'price': Decimal('5.49'), 'discount': Decimal('4.79'), 'rating': Decimal('4.5'), 'image_url': 'https://images.unsplash.com/photo-1582169296194-e4d644c48063?w=400', 'description': 'Crispy nachos with cheese and toppings', 'ingredients': 'Chips, cheese, beef, sour cream, salsa', 'grams': 250},
+            {'name': 'Mountain Dew', 'company': 'Taco Bell', 'category': 'Drinks', 'price': Decimal('1.99'), 'discount': Decimal('1.49'), 'rating': Decimal('4.2'), 'image_url': 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=400', 'description': 'Citrus flavored soda', 'ingredients': 'Carbonated water, sugar, citrus', 'grams': 500},
+            
             # Burger King
-            {
-                "name": "Whopper",
-                "company": "Burger King",
-                "category": "Burgers",
-                "original_price": Decimal("6.49"),
-                "discounted_price": Decimal("5.49"),
-                "description": "Flame-grilled burger with fresh toppings",
-                "ingredients": "Beef, lettuce, tomato, pickles, onions, ketchup, mayo, bun",
-                "grams": 290,
-                "image_url": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=400"
-            },
-            {
-                "name": "Chicken Nuggets",
-                "company": "Burger King",
-                "category": "Chicken",
-                "original_price": Decimal("5.99"),
-                "discounted_price": Decimal("4.99"),
-                "description": "Crispy chicken nuggets",
-                "ingredients": "Chicken, breading, oil",
-                "grams": 200,
-                "image_url": "https://images.unsplash.com/photo-1562967914-608f82629710?w=400"
-            },
-            {
-                "name": "Onion Rings",
-                "company": "Burger King",
-                "category": "Sides",
-                "original_price": Decimal("3.49"),
-                "discounted_price": Decimal("2.99"),
-                "description": "Crispy fried onion rings",
-                "ingredients": "Onions, batter, oil",
-                "grams": 140,
-                "image_url": "https://images.unsplash.com/photo-1639024471283-03518883512d?w=400"
-            },
+            {'name': 'Whopper', 'company': 'Burger King', 'category': 'Burgers', 'price': Decimal('6.49'), 'discount': Decimal('5.49'), 'rating': Decimal('4.7'), 'image_url': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400', 'description': 'Flame-grilled beef burger with toppings', 'ingredients': 'Beef, lettuce, tomato, pickles, onions, mayo, bun', 'grams': 280},
+            {'name': 'Chicken Nuggets', 'company': 'Burger King', 'category': 'Chicken', 'price': Decimal('4.99'), 'discount': Decimal('3.99'), 'rating': Decimal('4.4'), 'image_url': 'https://images.unsplash.com/photo-1562967914-608f82629710?w=400', 'description': 'Crispy chicken nuggets (10 pieces)', 'ingredients': 'Chicken, breading', 'grams': 200},
+            {'name': 'Onion Rings', 'company': 'Burger King', 'category': 'Sides', 'price': Decimal('3.49'), 'discount': Decimal('2.99'), 'rating': Decimal('4.3'), 'image_url': 'https://images.unsplash.com/photo-1639024471283-03518883512d?w=400', 'description': 'Crispy fried onion rings', 'ingredients': 'Onions, batter, oil', 'grams': 150},
+            
             # Domino's Pizza
-            {
-                "name": "Hawaiian Pizza",
-                "company": "Domino's Pizza",
-                "category": "Pizza",
-                "original_price": Decimal("13.99"),
-                "discounted_price": Decimal("11.99"),
-                "description": "Pizza with ham and pineapple",
-                "ingredients": "Dough, tomato sauce, mozzarella, ham, pineapple",
-                "grams": 460,
-                "image_url": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400"
-            },
-            {
-                "name": "BBQ Chicken Pizza",
-                "company": "Domino's Pizza",
-                "category": "Pizza",
-                "original_price": Decimal("14.99"),
-                "discounted_price": Decimal("12.99"),
-                "description": "Pizza with BBQ sauce and chicken",
-                "ingredients": "Dough, BBQ sauce, mozzarella, chicken, onions",
-                "grams": 480,
-                "image_url": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=400"
-            },
-            {
-                "name": "Garlic Bread",
-                "company": "Domino's Pizza",
-                "category": "Sides",
-                "original_price": Decimal("4.99"),
-                "discounted_price": Decimal("3.99"),
-                "description": "Warm garlic bread with butter",
-                "ingredients": "Bread, garlic, butter, herbs",
-                "grams": 180,
-                "image_url": "https://images.unsplash.com/photo-1573140401552-3fab0b24306f?w=400"
-            },
-            # More items
-            {
-                "name": "Caesar Salad",
-                "company": "Subway",
-                "category": "Salads",
-                "original_price": Decimal("6.99"),
-                "discounted_price": Decimal("5.99"),
-                "description": "Fresh romaine with caesar dressing",
-                "ingredients": "Romaine lettuce, parmesan, croutons, caesar dressing",
-                "grams": 220,
-                "image_url": "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400"
-            },
-            {
-                "name": "Ice Cream Sundae",
-                "company": "McDonald's",
-                "category": "Desserts",
-                "original_price": Decimal("2.99"),
-                "discounted_price": Decimal("2.49"),
-                "description": "Vanilla ice cream with topping",
-                "ingredients": "Ice cream, chocolate sauce, whipped cream",
-                "grams": 180,
-                "image_url": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400"
-            },
+            {'name': 'Margherita Pizza', 'company': "Domino's Pizza", 'category': 'Pizza', 'price': Decimal('11.99'), 'discount': Decimal('9.99'), 'rating': Decimal('4.6'), 'image_url': 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400', 'description': 'Classic pizza with fresh basil and mozzarella', 'ingredients': 'Dough, tomato, mozzarella, basil', 'grams': 750},
+            {'name': 'BBQ Chicken Pizza', 'company': "Domino's Pizza", 'category': 'Pizza', 'price': Decimal('13.99'), 'discount': Decimal('11.99'), 'rating': Decimal('4.7'), 'image_url': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400', 'description': 'Pizza with BBQ sauce and grilled chicken', 'ingredients': 'Dough, BBQ sauce, chicken, cheese, onions', 'grams': 850},
+            {'name': 'Chocolate Lava Cake', 'company': "Domino's Pizza", 'category': 'Desserts', 'price': Decimal('5.99'), 'discount': Decimal('4.99'), 'rating': Decimal('4.8'), 'image_url': 'https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=400', 'description': 'Warm chocolate cake with molten center', 'ingredients': 'Chocolate, flour, butter, sugar', 'grams': 120},
+            {'name': 'Pepsi', 'company': "Domino's Pizza", 'category': 'Drinks', 'price': Decimal('1.99'), 'discount': Decimal('1.49'), 'rating': Decimal('4.1'), 'image_url': 'https://images.unsplash.com/photo-1629203849142-8c9c26b8f5d8?w=400', 'description': 'Refreshing cola beverage', 'ingredients': 'Carbonated water, sugar, caffeine', 'grams': 500},
         ]
 
-        for data in products_data:
-            company = companies[data.pop('company')]
-            category = categories[data.pop('category')]
-            image_url = data.pop('image_url', None)
+        for prod_data in products_data:
+            company = companies.get(prod_data['company'])
+            category = categories.get(prod_data['category'])
             
+            if not company or not category:
+                self.stdout.write(self.style.WARNING(f'Skipping {prod_data["name"]} - missing company or category'))
+                continue
+
             product, created = Product.objects.get_or_create(
-                name=data['name'],
+                name=prod_data['name'],
                 company=company,
                 defaults={
-                    **data,
                     'category': category,
-                    'is_available': True
+                    'original_price': prod_data['price'],
+                    'discounted_price': prod_data['discount'],
+                    'rating': prod_data['rating'],
+                    'description': prod_data['description'],
+                    'ingredients': prod_data['ingredients'],
+                    'grams': prod_data['grams'],
                 }
             )
             
-            # Force re-download images by clearing and re-saving
-            if image_url:
-                if product.image:
-                    product.image.delete(save=False)  # Delete old file
-                image_content = self.download_image(image_url)
-                if image_content:
-                    product.image.save(f"{data['name'].lower().replace(' ', '_')}.jpg", image_content, save=True)
-                    self.stdout.write(f'Added image to: {product.name}')
+            # Always download and update image
+            if product.image:
+                product.image.delete(save=False)
             
-            if created:
-                self.stdout.write(f'Created product: {product.name} ({company.name})')
-            else:
-                self.stdout.write(f'Product exists: {product.name} ({company.name})')
+            image_file = self.download_image(prod_data['image_url'], f"{prod_data['name'].lower().replace(' ', '_')}.jpg")
+            if image_file:
+                product.image = image_file
+                product.save()
+                self.stdout.write(self.style.SUCCESS(f'Created/Updated product: {product.name}'))
 
-        # Create manager accounts for each company
-        for company_name, company in companies.items():
-            username = company_name.lower().replace("'", "").replace(" ", "_")
-            manager, created = MyUser.objects.get_or_create(
-                email=f"{username}@example.com",
-                defaults={
-                    'username': f"{username}_manager",
-                    'role': 'manager',
-                    'company': company
-                }
-            )
-            if created:
-                manager.set_password('manager123')
-                manager.save()
-                self.stdout.write(f'Created manager: {manager.email} (password: manager123)')
-
-        # Create a regular user
-        user, created = MyUser.objects.get_or_create(
-            email='user@example.com',
-            defaults={
-                'username': 'testuser',
-                'role': 'user',
-                'balance': Decimal('100.00')
-            }
-        )
-        if created:
-            user.set_password('user123')
-            user.save()
-            self.stdout.write('Created test user: user@example.com (password: user123)')
-
-        # Create a courier
-        courier, created = MyUser.objects.get_or_create(
-            email='courier@example.com',
-            defaults={
-                'username': 'testcourier',
-                'role': 'courier',
-                'phone_number': '+1234567890'
-            }
-        )
-        if created:
-            courier.set_password('courier123')
-            courier.save()
-            self.stdout.write('Created test courier: courier@example.com (password: courier123)')
-
-        self.stdout.write(self.style.SUCCESS('\n✅ Database population completed!'))
-        self.stdout.write('\nTest Accounts Created:')
-        self.stdout.write('- User: user@example.com / user123')
-        self.stdout.write('- Courier: courier@example.com / courier123')
-        self.stdout.write('- Manager (McDonald\'s): mcdonalds@example.com / manager123')
-        self.stdout.write('- Manager (KFC): kfc@example.com / manager123')
-        self.stdout.write('- Manager (Pizza Hut): pizza_hut@example.com / manager123')
+        self.stdout.write(self.style.SUCCESS('Database population completed!'))

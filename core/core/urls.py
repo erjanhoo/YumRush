@@ -58,12 +58,11 @@ urlpatterns = [
     path('token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
 
-# Serve media files in both development and production
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-else:
-    # Serve media files in production
+# Serve media files in production
+if not settings.DEBUG:
     from django.views.static import serve
     urlpatterns += [
         re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
     ]
+else:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
