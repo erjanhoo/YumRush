@@ -2,7 +2,7 @@ from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from django.utils import timezone
 from drf_yasg import openapi
-from core.common.permissions import IsCourier
+from common.permissions import IsCourier
 from rest_framework.generics import UpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView

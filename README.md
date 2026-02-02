@@ -5,6 +5,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 ## ✨ Main Features
 
 ### 🔐 **Advanced Authentication & Security**
+
 - **Multi-role System**: Three distinct user roles (User, Manager, Courier) with role-based permissions
 - **JWT Token Authentication**: Secure access and refresh tokens with blacklisting support
 - **Email Authentication Backend**: Login with email instead of username
@@ -16,6 +17,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Note**: Two-Factor Authentication and OTP email verification are currently disabled for Railway deployment compatibility
 
 ### 👥 **User Management**
+
 - **User Profiles**: Customizable profiles with avatars, addresses, and contact information
 - **Balance System**: Built-in wallet for quick payments
   - Top-up functionality
@@ -27,6 +29,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
   - **Couriers**: Accept orders, update delivery status, view earnings
 
 ### 🍔 **Product Catalog & Management**
+
 - **Multi-Company Support**: Multiple restaurants/companies in one platform
 - **Category System**: Hierarchical categories with parent-child relationships
 - **Product Features**:
@@ -45,12 +48,14 @@ A comprehensive food delivery system built with Django REST Framework, featuring
   - Stock increment/decrement operations
 
 ### 🛒 **Shopping Cart & Checkout**
+
 - **Persistent Shopping Cart**: Cart saved per user account
 - **Real-time Updates**: Dynamic cart total calculations
 - **Quantity Management**: Add, update, or remove items with validation
 - **Stock Validation**: Prevents over-ordering out-of-stock items
 
 ### 📦 **Order Management System**
+
 - **Complete Order Lifecycle**:
   1. **New** - Order created and payment deducted
   2. **Assigned** - Courier assigned to order
@@ -74,6 +79,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
   - Delivery type selection
 
 ### 🚚 **Courier System**
+
 - **Order Dashboard**:
   - View all available orders (unassigned)
   - See active orders (assigned and delivering)
@@ -86,6 +92,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Performance Tracking**: View completed orders and earnings
 
 ### 💬 **Real-time Live Chat**
+
 - **WebSocket-Based Communication**: Powered by Django Channels
 - **Order-Specific Chats**: Automatic chat group creation for each order
 - **Features**:
@@ -96,6 +103,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Security**: Authentication required, user access validation
 
 ### 🔍 **Advanced Search & Filtering**
+
 - **Product Search**: Multi-field search across names, descriptions, and tags
 - **Filter Options**:
   - By category
@@ -106,6 +114,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Sorting Options**: Price, rating, newest, popularity
 
 ### 📧 **Email Notifications**
+
 - **Automated Emails via Celery** (Currently Disabled for Railway):
   - Order confirmation
   - Courier assignment notifications
@@ -115,6 +124,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Note**: Email functionality is commented out to avoid issues with Railway's email restrictions
 
 ### 🎯 **Manager Features**
+
 - **Product Management**:
   - Create, update, and delete products
   - Manage product inventory
@@ -126,6 +136,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Company Control**: Products automatically linked to manager's company
 
 ### 🛡️ **Security & Performance**
+
 - **Caching System**: Redis-based caching for improved performance
   - Order history caching
   - Frequently accessed data
@@ -135,6 +146,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **Database Optimization**: Efficient queries with select_related and prefetch_related
 
 ### 📊 **API Features**
+
 - **RESTful API**: Clean, well-documented REST endpoints
 - **Swagger Documentation**: Interactive API documentation at `/swagger/`
 - **CORS Support**: Configured for cross-origin requests
@@ -144,6 +156,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 ## 🏗️ Architecture
 
 ### Backend Stack
+
 - **Django 5.2.5**: Web framework
 - **Django REST Framework**: RESTful API development
 - **PostgreSQL**: Primary database
@@ -153,6 +166,7 @@ A comprehensive food delivery system built with Django REST Framework, featuring
 - **JWT (SimpleJWT)**: Token-based authentication
 
 ### Key Technologies
+
 - **Email**: SMTP integration for notifications
 - **File Storage**: Media file handling for images
 - **WebSockets**: Real-time bidirectional communication
@@ -206,6 +220,7 @@ YumRush/
 ## 🎯 Use Cases
 
 ### For Customers
+
 1. Browse products by category or restaurant
 2. Search for specific items
 3. Add items to cart and checkout
@@ -216,6 +231,7 @@ YumRush/
 8. View order history
 
 ### For Couriers
+
 1. View available delivery orders
 2. Accept orders for delivery
 3. Update order status (delivering, delivered)
@@ -224,6 +240,7 @@ YumRush/
 6. Manage active deliveries
 
 ### For Managers
+
 1. Create and manage products
 2. Set up categories and pricing
 3. Manage inventory and stock
@@ -242,12 +259,14 @@ YumRush/
 ## 🚀 Railway Deployment Guide
 
 ### Prerequisites
+
 - GitHub repository with your code pushed
 - Railway account (sign up at [railway.app](https://railway.app))
 
 ### Deployment Steps
 
 #### 1. **Create New Project**
+
 1. Log in to Railway
 2. Click "New Project"
 3. Select "Deploy from GitHub repo"
@@ -255,14 +274,17 @@ YumRush/
 5. Set **Root Directory** to `core`
 
 #### 2. **Add Database Services**
+
 1. Click "New" → "Database" → "Add PostgreSQL"
 2. Click "New" → "Database" → "Add Redis"
 3. Railway will auto-generate `DATABASE_URL` and `REDIS_URL`
 
 #### 3. **Configure Environment Variables**
+
 Add these variables to your web service:
 
 **Required:**
+
 ```bash
 SECRET_KEY=your-secret-key-here
 DEBUG=False
@@ -272,12 +294,14 @@ REDIS_URL=redis://...          # Auto-added by Railway Redis
 ```
 
 **Optional (if using email later):**
+
 ```bash
 EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
 ```
 
 #### 4. **Deploy Web Service**
+
 - Railway automatically detects Dockerfile
 - The entrypoint script will:
   - Run database migrations
@@ -285,6 +309,7 @@ EMAIL_HOST_PASSWORD=your-app-password
   - Start Daphne server on Railway's dynamic PORT
 
 #### 5. **Add Celery Worker (Optional)**
+
 1. Click "New" → "Service from repo"
 2. Select same repository
 3. Set **Root Directory** to `core`
@@ -295,6 +320,7 @@ EMAIL_HOST_PASSWORD=your-app-password
 5. Add same environment variables as web service
 
 #### 6. **Configure Custom Domain (Optional)**
+
 1. Go to your web service settings
 2. Click "Settings" → "Domains"
 3. Add your custom domain
@@ -302,15 +328,15 @@ EMAIL_HOST_PASSWORD=your-app-password
 
 ### Environment Variables Reference
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SECRET_KEY` | Django secret key | `django-insecure-xyz...` |
-| `DEBUG` | Debug mode (always False in production) | `False` |
-| `ALLOWED_HOSTS` | Allowed hostnames | `.railway.app,example.com` |
-| `DATABASE_URL` | PostgreSQL connection string | Auto-added by Railway |
-| `REDIS_URL` | Redis connection string | Auto-added by Railway |
-| `EMAIL_HOST_USER` | Gmail account (optional) | `your@gmail.com` |
-| `EMAIL_HOST_PASSWORD` | Gmail app password (optional) | `your-app-password` |
+| Variable              | Description                             | Example                    |
+| --------------------- | --------------------------------------- | -------------------------- |
+| `SECRET_KEY`          | Django secret key                       | `django-insecure-xyz...`   |
+| `DEBUG`               | Debug mode (always False in production) | `False`                    |
+| `ALLOWED_HOSTS`       | Allowed hostnames                       | `.railway.app,example.com` |
+| `DATABASE_URL`        | PostgreSQL connection string            | Auto-added by Railway      |
+| `REDIS_URL`           | Redis connection string                 | Auto-added by Railway      |
+| `EMAIL_HOST_USER`     | Gmail account (optional)                | `your@gmail.com`           |
+| `EMAIL_HOST_PASSWORD` | Gmail app password (optional)           | `your-app-password`        |
 
 ### Post-Deployment
 
@@ -331,6 +357,7 @@ python manage.py runserver
 ```
 
 Or use Docker Compose:
+
 ```bash
 cd core
 docker-compose up
@@ -341,9 +368,10 @@ docker-compose up
 Interactive API documentation available at `/swagger/` when running the server.
 
 ### Key Endpoint Groups
+
 - **Authentication**: `/api/user/` - Registration, login, logout
 - **Profile Management**: `/api/user/profile/` - View and update profile
-- **Account Management**: 
+- **Account Management**:
   - `/api/user/change_password/` - Change password with confirmation
   - `/api/user/change_email/` - Change email with password confirmation
   - `/api/user/change_username/` - Change username with password confirmation
