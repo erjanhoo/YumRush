@@ -2,27 +2,59 @@ from django.core.management.base import BaseCommand
 from user.models import MyUser
 from product.models import Company, Category, Product
 from decimal import Decimal
+from django.core.files.base import ContentFile
+import requests
 
 
 class Command(BaseCommand):
     help = 'Populate database with sample data'
+
+    def download_image(self, url):
+        """Download image from URL and return ContentFile"""
+        try:
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                return ContentFile(response.content)
+        except:
+            pass
+        return None
 
     def handle(self, *args, **kwargs):
         self.stdout.write('Starting database population...')
 
         # Create Companies
         companies_data = [
-            {"name": "McDonald's", "phone_number": "+1234567890", "description": "Fast food chain"},
-            {"name": "KFC", "phone_number": "+1234567891", "description": "Fried chicken specialists"},
-            {"name": "Pizza Hut", "phone_number": "+1234567892", "description": "Pizza restaurant"},
+            {
+                "name": "McDonald's",
+                "phone_number": "+1234567890",
+                "description": "Fast food chain",
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/McDonald%27s_Golden_Arches.svg/200px-McDonald%27s_Golden_Arches.svg.png"
+            },
+            {
+                "name": "KFC",
+                "phone_number": "+1234567891",
+                "description": "Fried chicken specialists",
+                "logo_url": "https://upload.wikimedia.org/wikipedia/en/thumb/b/bf/KFC_logo.svg/200px-KFC_logo.svg.png"
+            },
+            {
+                "name": "Pizza Hut",
+                "phone_number": "+1234567892",
+                "description": "Pizza restaurant",
+                "logo_url": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d2/Pizza_Hut_logo.svg/200px-Pizza_Hut_logo.svg.png"
+            },
         ]
 
         companies = {}
         for data in companies_data:
+            logo_url = data.pop('logo_url', None)
             company, created = Company.objects.get_or_create(
                 name=data['name'],
                 defaults=data
             )
+            if created and logo_url:
+                logo_content = self.download_image(logo_url)
+                if logo_content:
+                    company.logo.save(f"{data['name'].lower().replace(' ', '_')}_logo.png", logo_content, save=True)
             companies[data['name']] = company
             if created:
                 self.stdout.write(f'Created company: {company.name}')
@@ -57,7 +89,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("4.99"),
                 "description": "Two all-beef patties, special sauce, lettuce, cheese",
                 "ingredients": "Beef, lettuce, cheese, pickles, onions, sauce, sesame bun",
-                "grams": 215
+                "grams": 215,
+                "image_url": "https://images.unsplash.com/photo-1550547660-d9450f859349?w=400"
             },
             {
                 "name": "McChicken",
@@ -67,7 +100,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("3.99"),
                 "description": "Crispy chicken sandwich",
                 "ingredients": "Chicken, lettuce, mayo, bun",
-                "grams": 185
+                "grams": 185,
+                "image_url": "https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=400"
             },
             {
                 "name": "French Fries",
@@ -77,7 +111,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("2.49"),
                 "description": "Golden crispy fries",
                 "ingredients": "Potatoes, salt, oil",
-                "grams": 150
+                "grams": 150,
+                "image_url": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400"
             },
             # KFC
             {
@@ -88,7 +123,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("7.99"),
                 "description": "Colonel's original recipe fried chicken",
                 "ingredients": "Chicken, 11 herbs and spices",
-                "grams": 300
+                "grams": 300,
+                "image_url": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400"
             },
             {
                 "name": "Zinger Burger",
@@ -98,7 +134,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("5.99"),
                 "description": "Spicy crispy chicken burger",
                 "ingredients": "Chicken, lettuce, mayo, bun",
-                "grams": 220
+                "grams": 220,
+                "image_url": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400"
             },
             # Pizza Hut
             {
@@ -109,7 +146,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("10.99"),
                 "description": "Classic pepperoni pizza",
                 "ingredients": "Dough, tomato sauce, mozzarella, pepperoni",
-                "grams": 450
+                "grams": 450,
+                "image_url": "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400"
             },
             {
                 "name": "Margherita Pizza",
@@ -119,7 +157,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("9.99"),
                 "description": "Classic cheese pizza",
                 "ingredients": "Dough, tomato sauce, mozzarella, basil",
-                "grams": 400
+                "grams": 400,
+                "image_url": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400"
             },
             # Drinks
             {
@@ -130,7 +169,8 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("1.49"),
                 "description": "Refreshing cola drink",
                 "ingredients": "Carbonated water, sugar, caffeine",
-                "grams": 500
+                "grams": 500,
+                "image_url": "https://images.unsplash.com/photo-1554866585-cd94860890b7?w=400"
             },
             {
                 "name": "Pepsi",
@@ -140,13 +180,15 @@ class Command(BaseCommand):
                 "discounted_price": Decimal("1.49"),
                 "description": "Refreshing cola drink",
                 "ingredients": "Carbonated water, sugar, caffeine",
-                "grams": 500
+                "grams": 500,
+                "image_url": "https://images.unsplash.com/photo-1629203851122-3726ecdf080e?w=400"
             },
         ]
 
         for data in products_data:
             company = companies[data.pop('company')]
             category = categories[data.pop('category')]
+            image_url = data.pop('image_url', None)
             
             product, created = Product.objects.get_or_create(
                 name=data['name'],
@@ -158,6 +200,10 @@ class Command(BaseCommand):
                 }
             )
             if created:
+                if image_url:
+                    image_content = self.download_image(image_url)
+                    if image_content:
+                        product.image.save(f"{data['name'].lower().replace(' ', '_')}.jpg", image_content, save=True)
                 self.stdout.write(f'Created product: {product.name} ({company.name})')
 
         # Create manager accounts for each company
