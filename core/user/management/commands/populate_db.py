@@ -55,13 +55,19 @@ class Command(BaseCommand):
                 name=data['name'],
                 defaults=data
             )
-            if created and logo_url:
+            
+            # Download logo for both new and existing companies if they don't have one
+            if logo_url and not company.logo:
                 logo_content = self.download_image(logo_url)
                 if logo_content:
                     company.logo.save(f"{data['name'].lower().replace(' ', '_')}_logo.png", logo_content, save=True)
+                    self.stdout.write(f'Added logo to: {company.name}')
+            
             companies[data['name']] = company
             if created:
                 self.stdout.write(f'Created company: {company.name}')
+            else:
+                self.stdout.write(f'Company exists: {company.name}')
 
         # Create Categories
         categories_data = [
@@ -203,12 +209,18 @@ class Command(BaseCommand):
                     'is_available': True
                 }
             )
+            
+            # Download image for both new and existing products if they don't have one
+            if image_url and not product.image:
+                image_content = self.download_image(image_url)
+                if image_content:
+                    product.image.save(f"{data['name'].lower().replace(' ', '_')}.jpg", image_content, save=True)
+                    self.stdout.write(f'Added image to: {product.name}')
+            
             if created:
-                if image_url:
-                    image_content = self.download_image(image_url)
-                    if image_content:
-                        product.image.save(f"{data['name'].lower().replace(' ', '_')}.jpg", image_content, save=True)
                 self.stdout.write(f'Created product: {product.name} ({company.name})')
+            else:
+                self.stdout.write(f'Product exists: {product.name} ({company.name})')
 
         # Create manager accounts for each company
         for company_name, company in companies.items():
