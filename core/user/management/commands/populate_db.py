@@ -210,8 +210,10 @@ class Command(BaseCommand):
                 }
             )
             
-            # Download image for both new and existing products if they don't have one
-            if image_url and not product.image:
+            # Force re-download images by clearing and re-saving
+            if image_url:
+                if product.image:
+                    product.image.delete(save=False)  # Delete old file
                 image_content = self.download_image(image_url)
                 if image_content:
                     product.image.save(f"{data['name'].lower().replace(' ', '_')}.jpg", image_content, save=True)
