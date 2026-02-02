@@ -42,15 +42,39 @@ class UserOTPVerificationSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+
     class Meta:
         model = MyUser
         fields = ('id', 'username', 'email', 'phone_number', 'avatar', 'address', 'is_2fa_enabled', 'created_date', 'role', 'balance')
+
+    def get_avatar(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
         fields = ('username', 'email', 'phone_number', 'avatar', 'address', 'is_2fa_enabled')
         read_only_fields = ('email', )
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.avatar:
+            request = self.context.get('request')
+            if request:
+                representation['avatar'] = request.build_absolute_uri(instance.avatar.url)
+            else:
+                representation['avatar'] = instance.avatar.url
+        else:
+            representation['avatar'] = None
+        return representation
+
 
 class UserBalanceTopUpSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
