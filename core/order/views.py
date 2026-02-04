@@ -136,7 +136,7 @@ class UserOrderHistoryView(APIView):
     @swagger_auto_schema(
         tags=['Orders'],
         operation_id='orders_history_list',
-        operation_description="Получить историю заказов пользователя",
+        operation_description="Получить историю заказов пользователя (все заказы)",
         responses={
             200: openapi.Response(
                 description="История заказов",
@@ -152,7 +152,8 @@ class UserOrderHistoryView(APIView):
         if data:
             return Response(data, status=status.HTTP_200_OK)
 
-        orders = Order.objects.filter(user=request.user, status='delivered').order_by('-created_at')
+        # Get all user orders, not just delivered ones
+        orders = Order.objects.filter(user=request.user).order_by('-created_at')
         serializer = UserOrderHistorySerializer(orders, many=True)
         cache.set(cache_key, serializer.data, 60*5)
 
@@ -586,4 +587,178 @@ class OrderChatGroupView(APIView):
             "user_id": order.user.id,
             "courier_id": order.assigned_courier.id if order.assigned_courier else None
         }, status=status.HTTP_200_OK)
+
+
+class CartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Cart'],
+        operation_id='cart_get',
+        operation_description="Получить текущую корзину пользователя со всеми товарами",
+        responses={
+            200: openapi.Response(
+                description="Корзина пользователя",
+                schema=CartSerializer
+            ),
+            401: openapi.Response(description="Требуется аутентификация")
+        }
+    )
+    def get(self, request):
+        """Get user's active cart with all items"""
+        cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
+        serializer = CartSerializer(cart)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        tags=['Cart'],
+        operation_id='cart_update_item',
+        operation_description="Обновить количество товара в корзине или добавить новый товар",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['product_id', 'quantity'],
+            properties={
+                'product_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID продукта'),
+                'quantity': openapi.Schema(type=openapi.TYPE_INTEGER, description='Новое количество (0 - удалить из корзины)')
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="Корзина обновлена",
+                schema=CartSerializer
+            ),
+            400: openapi.Response(description="Неверные данные"),
+            401: openapi.Response(description="Требуется аутентификация"),
+            404: openapi.Response(description="Продукт не найден")
+        }
+    )
+    def put(self, request):
+        """Update cart item quantity or add new item"""
+        cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
+        
+        product_id = request.data.get('product_id')
+        quantity = request.data.get('quantity')
+
+        if not product_id:
+            return Response({
+                'error': 'ID продукта обязателен'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            quantity = int(quantity)
+            if quantity < 0 or quantity > 100:
+                return Response({
+                    'error': 'Количество должно быть от 0 до 100'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({
+                'error': 'Неверное количество'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from product.models import Product
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({
+                'error': 'Продукт не найден'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Check product availability
+        if not product.is_available:
+            return Response({
+                'error': 'Продукт недоступен для заказа'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check stock
+        if quantity > product.stock_quantity:
+            return Response({
+                'error': f'Недостаточно товара на складе. Доступно: {product.stock_quantity}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        cart_item, created = CartItem.objects.get_or_create(
+            product=product,
+            cart=cart,
+            defaults={'quantity': quantity}
+        )
+
+        if not created:
+            if quantity == 0:
+                cart_item.delete()
+            else:
+                cart_item.quantity = quantity
+                cart_item.save()
+
+        cart_serializer = CartSerializer(cart)
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        tags=['Cart'],
+        operation_id='cart_delete_item',
+        operation_description="Удалить товар из корзины",
+        manual_parameters=[
+            openapi.Parameter(
+                'product_id',
+                openapi.IN_QUERY,
+                description="ID продукта для удаления",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="Товар удален из корзины",
+                schema=CartSerializer
+            ),
+            400: openapi.Response(description="Неверные данные"),
+            401: openapi.Response(description="Требуется аутентификация"),
+            404: openapi.Response(description="Товар не найден в корзине")
+        }
+    )
+    def delete(self, request):
+        """Remove item from cart"""
+        cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
+        
+        product_id = request.query_params.get('product_id')
+        
+        if not product_id:
+            return Response({
+                'error': 'ID продукта обязателен'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            cart_item = CartItem.objects.get(cart=cart, product_id=product_id)
+            cart_item.delete()
+        except CartItem.DoesNotExist:
+            return Response({
+                'error': 'Товар не найден в корзине'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        cart_serializer = CartSerializer(cart)
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+
+class ClearCartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Cart'],
+        operation_id='cart_clear',
+        operation_description="Очистить всю корзину",
+        responses={
+            200: openapi.Response(description="Корзина очищена"),
+            401: openapi.Response(description="Требуется аутентификация")
+        }
+    )
+    def post(self, request):
+        """Clear all items from cart"""
+        try:
+            cart = Cart.objects.get(user=request.user, is_active=True)
+            cart.items.all().delete()
+            return Response({
+                'message': 'Корзина очищена'
+            }, status=status.HTTP_200_OK)
+        except Cart.DoesNotExist:
+            return Response({
+                'message': 'Корзина уже пуста'
+            }, status=status.HTTP_200_OK)
 

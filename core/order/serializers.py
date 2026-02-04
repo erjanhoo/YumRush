@@ -32,6 +32,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    product = ProductListSerializer()
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    
     class Meta:
         model = OrderItem
         fields = ['id', 'product', 'quantity', 'total_price']
@@ -51,16 +54,20 @@ class OrderRatingSerializer(serializers.ModelSerializer):
 
 class UserOrderHistorySerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    deliveries = DeliverySerializer(many=True, read_only=True)
+    
     class Meta:
         model = Order
-        fields = ['id', 'created_at', 'status', 'total_price', 'items']
+        fields = ['id', 'created_at', 'status', 'total_price', 'items', 'deliveries', 'rating']
 
 
 class UserOrderHistoryDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    deliveries = DeliverySerializer(many=True, read_only=True)
+    
     class Meta:
         model = Order
-        fields = ['id', 'created_at', 'status', 'total_price', 'items']
+        fields = ['id', 'created_at', 'delivered_at', 'status', 'total_price', 'items', 'deliveries', 'rating']
 
 
 class CreateOrderSerializer(serializers.Serializer):

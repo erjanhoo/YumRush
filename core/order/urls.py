@@ -2,6 +2,10 @@ from django.urls import path
 from .views import *
 
 urlpatterns = [
+    # Cart management
+    path('cart/', CartView.as_view(), name='cart'),
+    path('cart/clear/', ClearCartView.as_view(), name='cart_clear'),
+    
     # Order management
     path('create/', CreateOrderView.as_view(), name='create_order'),
     path('history/', UserOrderHistoryView.as_view(), name='user_order_history'),
