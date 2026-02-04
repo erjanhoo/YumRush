@@ -40,6 +40,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'quantity', 'total_price']
 
 
+class DeliverySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Delivery
+        fields = ['id', 'delivery_type', 'receiver_name', 'receiver_phone_number',
+                  'delivery_address', 'description', 'is_free_delivery', 'created_at']
+
+
 class OrderRatingSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -86,13 +93,6 @@ class CreateOrderSerializer(serializers.Serializer):
                 'delivery_address':'Address can not be empty'
             })
         return data
-
-
-class DeliverySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Delivery
-        fields = ['id', 'delivery_type', 'receiver_name', 'receiver_phone_number',
-                  'delivery_address', 'description', 'is_free_delivery', 'created_at']
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
